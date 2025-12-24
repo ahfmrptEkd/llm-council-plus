@@ -86,6 +86,68 @@ Open your browser to: **http://localhost:5173**
 
 ## Configuration Options
 
+### LLM Router Type
+
+**OpenRouter (Default):**
+```bash
+ROUTER_TYPE=openrouter
+OPENROUTER_API_KEY=sk-or-v1-your-key-here
+```
+
+**Ollama (Local Models):**
+```bash
+ROUTER_TYPE=ollama
+OLLAMA_HOST=localhost:11434
+```
+
+**LiteLLM (Multi-Provider):**
+```bash
+ROUTER_TYPE=litellm
+
+# Azure OpenAI (GPT, DeepSeek, Llama)
+AZURE_PROJECT_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_API_KEY=your-azure-api-key
+
+# Azure Anthropic (Claude) - Optional
+AZURE_PROJECT_ANTHROPIC_ENDPOINT=https://your-resource.anthropic.azure.com/
+# Uses same AZURE_API_KEY
+
+# Azure Extra Endpoint (Phi models) - Optional
+AZURE_PROJECT_EXTRA_ENDPOINT=https://your-extra-resource.openai.azure.com/
+# Uses same AZURE_API_KEY
+
+# Google Gemini - Choose one:
+# Option 1: Google AI Studio (Direct API)
+GEMINI_AI_API_KEY=your-gemini-api-key
+
+# Option 2: Vertex AI (GCP)
+VERTEX_PROJECT_ID=your-gcp-project-id
+GOOGLE_CLOUD_LOCATION=us-central1
+
+# Grok (xAI) - Optional
+GROK_API_KEY=your-grok-api-key
+
+# Langfuse Monitoring (Optional)
+LANGFUSE_PUBLIC_KEY=your-langfuse-public-key
+LANGFUSE_SECRET_KEY=your-langfuse-secret-key
+LANGFUSE_HOST=http://localhost:3000  # Optional, defaults to localhost
+```
+
+**Model Aliases (LiteLLM):**
+LiteLLM router uses model aliases defined in `shared/llm/config/model_deployments.yaml`:
+- `gpt-5-mini`, `gpt-5-chat`, `gpt-5.1-chat` (Azure OpenAI)
+- `claude-sonnet-4.5`, `claude-opus-4.5` (Azure Anthropic)
+- `deepseek-r1`, `deepseek-v3` (Azure DeepSeek)
+- `llama-3.3-70b` (Azure Llama)
+- `phi-4`, `phi-4-reasoning`, `phi-4-multimodal` (Azure Phi)
+- `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-3-pro`, `gemini-3-flash` (Google Gemini)
+- `grok-4`, `grok-4.1-fast` (xAI Grok)
+
+**Default Models per Router:**
+- OpenRouter: `openai/gpt-5.1`, `google/gemini-3-pro-preview`, `anthropic/claude-sonnet-4.5`, `x-ai/grok-4`
+- Ollama: `deepseek-r1:latest`, `llama3.1:latest`, `qwen3:latest`, `gemma3:latest`
+- LiteLLM: `gpt-5-mini`, `gemini-2.5-pro`, `claude-sonnet-4.5`, `grok-4`
+
 ### Storage Backend
 
 **JSON (Default - Zero Setup):**
