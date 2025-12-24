@@ -1,0 +1,86 @@
+# Model pricing configuration
+# Prices are per 1K tokens (USD)
+# Keys must match model_deployments.yaml
+
+# ========== Azure Models ==========
+
+# GPT models (Azure OpenAI)
+gpt:
+  gpt-5-mini:
+    input: 0.00025
+    output: 0.002
+  gpt-5-chat:
+    input: 0.00125 # GPT-5계열 대략
+    output: 0.01 # GPT-5계열 대략
+  gpt-5.1-chat:
+    input: 0.00125
+    output: 0.01
+  gpt-5.1-codex-mini:
+    input: 0.00025
+    output: 0.002
+  gpt-oss-120b:
+    input: 0.003
+    output: 0.006
+
+# Claude models (Azure AnthropicFoundry)
+claude:
+  claude-sonnet-4.5:
+    input: 0.003
+    output: 0.015
+  claude-opus-4.5:
+    input: 0.005
+    output: 0.025
+
+# DeepSeek models (Azure)
+deepseek:
+  deepseek-r1:
+    input: 0.001
+    output: 0.002
+  deepseek-v3:
+    input: 0.001
+    output: 0.002
+
+# Meta Llama models (Azure)
+llama:
+  llama-3.3-70b:
+    input: 0.001
+    output: 0.002
+
+# Microsoft Phi models (Azure)
+phi:
+  phi-4:
+    input: 0.001
+    output: 0.002
+  phi-4-reasoning:
+    input: 0.001
+    output: 0.002
+  phi-4-multimodal:
+    input: 0.001
+    output: 0.002
+
+# ========== Non-Azure Models ==========
+# Prices are per 1K tokens (USD)
+
+# Grok models (xAI direct API)
+grok:
+  grok-4:
+    input: 0.003
+    output: 0.015
+  grok-4.1-fast:
+    input: 0.0002
+    output: 0.0005
+
+# Gemini models (Google AI Studio direct API)
+gemini:
+  gemini-2.5-pro:
+    input: 0.00125
+    output: 0.01
+  gemini-2.5-flash:
+    input: 0.00030
+    output: 0.00250
+  gemini-3-pro:
+    input: 0.002
+    output: 0.012
+  gemini-3-flash:
+    input: 0.0005
+    output: 0.003

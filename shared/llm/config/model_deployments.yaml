@@ -1,0 +1,54 @@
+# Model name to deployment/API model name mappings
+# Format: input_model_name: actual_api_model_name
+
+# ========== Azure Models ==========
+
+# GPT models (Azure OpenAI)
+gpt:
+  gpt-5-mini: gpt-5-mini-prod
+  gpt-5-chat: gpt-5-chat-prod
+  gpt-5.1-chat: gpt-5.1-chat-prod
+  gpt-5.1-codex-mini: gpt-5.1-codex-mini-prod
+  gpt-oss-120b: gpt-oss-120b-prod
+  model-router: model-router-prod
+
+# Claude models (Azure AnthropicFoundry)
+claude:
+  claude-sonnet-4.5: claude-sonnet-4-5-prod
+  claude-opus-4.5: claude-opus-4-5-prod
+
+# DeepSeek models (Azure)
+deepseek:
+  deepseek-r1: DeepSeek-R1-prod
+  deepseek-v3: DeepSeek-V3-1-prod
+
+# Meta Llama models (Azure)
+llama:
+  llama-3.3-70b: Llama-3.3-70B-Instruct-prod
+
+# Microsoft Phi models (Azure)
+phi:
+  phi-4: Phi-4-prod
+  phi-4-reasoning: Phi-4-reasoning-prod
+  phi-4-multimodal: Phi-4-multimodal-instruct-prod
+
+# Embedding models (Azure)
+embedding:
+  text-embedding-3-large: text-embedding-3-large-prod
+  text-embedding-ada-002: text-embedding-ada-002-prod
+  cohere-embed-english: Cohere-embed-v3-english-prod
+  cohere-embed-multilingual: Cohere-embed-v3-multilingual-prod
+
+# ========== Non-Azure Models ==========
+
+# Grok models (xAI direct API)
+grok:
+  grok-4: grok-4
+  grok-4.1-fast: grok-4-1-fast-reasoning
+
+# Gemini models (Google AI Studio direct API)
+gemini:
+  gemini-2.5-pro: gemini-2.5-pro
+  gemini-2.5-flash: gemini-2.5-flash
+  gemini-3-pro: gemini-3-pro-preview
+  gemini-3-flash: gemini-3-flash-preview
