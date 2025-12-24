@@ -162,18 +162,17 @@ class LLMManager:
             if not endpoint or not api_key:
                 raise ValueError("AZURE_PROJECT_ANTHROPIC_ENDPOINT and AZURE_API_KEY must be set.")
 
-            # If using Azure Anthropic/Foundry, it typically emulates Anthropic API or OpenAI.
-            # Assuming standard Anthropic API exposed on Azure here (based on previous ChatAnthropic usage)
-            # LiteLLM needs 'anthropic/' prefix usually, but with custom API base.
-            config.update({"model": f"anthropic/{deployment_name}", "api_base": endpoint, "api_key": api_key})
+            # Azure Anthropic uses azure_ai/ prefix in LiteLLM
+            config.update({"model": f"azure_ai/{deployment_name}", "api_base": endpoint, "api_key": api_key})
 
         elif "grok" in model_lower:
-            api_key = os.getenv("GROK_API_KEY")
+            # LiteLLM uses XAI_API_KEY for xAI/Grok models
+            api_key = os.getenv("XAI_API_KEY")
             if not api_key:
-                raise ValueError("GROK_API_KEY must be set.")
+                raise ValueError("XAI_API_KEY must be set for Grok models.")
 
-            # Grok is OpenAI compatible
-            config.update({"model": f"openai/{deployment_name}", "api_base": "https://api.x.ai/v1", "api_key": api_key})
+            # Grok uses xai/ prefix in LiteLLM - api_key passed via env var
+            config.update({"model": f"xai/{deployment_name}"})
 
         elif "gemini" in model_lower:
             api_key = os.getenv("GEMINI_AI_API_KEY")
