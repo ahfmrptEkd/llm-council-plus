@@ -23,14 +23,32 @@ APP_VERSION="1.2.12" docker compose up -d
 # Access at http://localhost
 ```
 
+### LLM Router Architecture
+
+The system supports **three router types** via `ROUTER_TYPE` environment variable:
+
+1. **OpenRouter** (default): Cloud-based access to 200+ models
+2. **LiteLLM**: Multi-provider unified interface (Azure, GCP, xAI, Ollama)
+3. **Ollama** (deprecated): Use `ROUTER_TYPE=litellm` with `USE_OLLAMA_MODELS=true` instead
+
+**LiteLLM Benefits:**
+- Enterprise multi-cloud support (Azure OpenAI, Azure Anthropic, Google Gemini, xAI Grok)
+- Local model support via Ollama integration
+- Unified cost tracking via Langfuse monitoring
+- Model alias system for deployment abstraction
+- Rate limit handling with exponential backoff
+
 ### Backend Structure (`backend/`)
 
 **`config.py`**
-- Contains `COUNCIL_MODELS` (list of OpenRouter model identifiers)
+- Contains `COUNCIL_MODELS` (list of model identifiers, format varies by router type)
 - Contains `CHAIRMAN_MODEL` (model that synthesizes final answer)
-- Contains `reload_config()` function for hot reload without container restart
-- Supports both OpenRouter (cloud) and Ollama (local) models
-- Configuration loaded from `.env` file
+- `ROUTER_TYPE` selector: "openrouter", "litellm" (supports Ollama via `USE_OLLAMA_MODELS=true`)
+- `reload_config()` function for hot reload without container restart
+- Default models per router:
+  - OpenRouter: `openai/gpt-5.1`, `google/gemini-3-pro-preview`, `anthropic/claude-sonnet-4.5`, `x-ai/grok-4`
+  - LiteLLM (cloud): `gpt-5.1`, `gemini-2.5-pro`, `claude-sonnet-4.5`, `grok-4`
+  - LiteLLM (Ollama): `ollama/deepseek-r1:latest`, `ollama/llama3.1:latest`, `ollama/qwen3:latest`, `ollama/gemma3:latest`
 
 **`auth.py`**
 - JWT-based authentication system
@@ -39,11 +57,29 @@ APP_VERSION="1.2.12" docker compose up -d
 - 60-day token expiry with auto-logout
 
 **`openrouter.py`**
+- OpenRouter-specific implementation (used when `ROUTER_TYPE=openrouter`)
 - `query_model()`: Single async model query
 - `query_models_parallel()`: Parallel queries using `asyncio.gather()`
 - `query_models_streaming()`: SSE streaming for real-time responses
 - Uses dynamic config access (`config.OPENROUTER_API_KEY`) for hot reload support
 - Graceful degradation: returns None on failure, continues with successful responses
+
+**`litellm_router.py`** (New)
+- LiteLLM-specific implementation (used when `ROUTER_TYPE=litellm`)
+- Compatible interface with `openrouter.py` for seamless switching
+- `query_model()`: Single async query with retry logic and rate limit handling
+- `query_models_parallel()`: Parallel queries across multiple providers
+- `query_models_streaming()`: SSE streaming with provider-agnostic interface
+- `build_message_content()`: Multimodal support (text + images)
+- Provider-specific configuration via `_resolve_model_config()`:
+  - Azure OpenAI: GPT, DeepSeek, Llama (via `AZURE_PROJECT_ENDPOINT`)
+  - Azure Anthropic: Claude models (via `AZURE_PROJECT_ANTHROPIC_ENDPOINT`)
+  - Azure Extra: Phi models (via `AZURE_PROJECT_EXTRA_ENDPOINT`)
+  - Google Gemini: Via Google AI Studio API or Vertex AI
+  - xAI Grok: Direct API integration
+  - Ollama: Local models via LiteLLM adapter
+- Error handling: Categorizes errors (rate_limit, timeout, auth, not_found)
+- Retry strategy: Max 2 retries with exponential backoff (2s → 30s cap)
 
 **`council.py`** - The Core Logic
 - `stage1_collect_responses()`: Parallel queries to all council models
