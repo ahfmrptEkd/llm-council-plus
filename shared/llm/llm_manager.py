@@ -111,9 +111,29 @@ class LLMManager:
         model_lower = model_alias.lower()
         config = {}
 
+        # Ollama local models - check FIRST before other providers
+        # (ollama model names may contain "deepseek", "llama", etc.)
+        if "ollama" in model_lower or model_alias.startswith("ollama/"):
+            ollama_base = os.getenv("OLLAMA_HOST", "localhost:11434")
+            # Remove http:// if present, LiteLLM adds it
+            if ollama_base.startswith("http://"):
+                ollama_base = ollama_base[7:]
+            elif ollama_base.startswith("https://"):
+                ollama_base = ollama_base[8:]
+
+            # Extract model name (remove ollama/ prefix if present)
+            model_name = deployment_name
+            if model_name.startswith("ollama/"):
+                model_name = model_name[7:]
+
+            config.update({
+                "model": f"ollama/{model_name}",
+                "api_base": f"http://{ollama_base}"
+            })
+
         # Azure OpenAI (GPT, DeepSeek, Llama)
         # Note: Phi is also Azure OpenAI compatible but on a different endpoint in this setup
-        if "gpt" in model_lower or "deepseek" in model_lower or "llama" in model_lower:
+        elif "gpt" in model_lower or "deepseek" in model_lower or "llama" in model_lower:
             endpoint = os.getenv("AZURE_PROJECT_ENDPOINT")
             api_key = os.getenv("AZURE_API_KEY")
             if not endpoint or not api_key:
@@ -166,25 +186,6 @@ class LLMManager:
                     raise ValueError("VERTEX_PROJECT_ID or GEMINI_AI_API_KEY must be set.")
 
                 config.update({"model": f"vertex_ai/{deployment_name}", "vertex_project": project, "vertex_location": location})
-
-        elif "ollama" in model_lower or model_alias.startswith("ollama/"):
-            # Ollama local models
-            ollama_base = os.getenv("OLLAMA_HOST", "localhost:11434")
-            # Remove http:// if present, LiteLLM adds it
-            if ollama_base.startswith("http://"):
-                ollama_base = ollama_base[7:]
-            elif ollama_base.startswith("https://"):
-                ollama_base = ollama_base[8:]
-            
-            # Extract model name (remove ollama/ prefix if present)
-            model_name = deployment_name
-            if model_name.startswith("ollama/"):
-                model_name = model_name[7:]
-            
-            config.update({
-                "model": f"ollama/{model_name}",
-                "api_base": f"http://{ollama_base}"
-            })
 
         else:
             endpoint = os.getenv("AZURE_PROJECT_ENDPOINT")
