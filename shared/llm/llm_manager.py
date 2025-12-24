@@ -219,8 +219,6 @@ class LLMManager:
         temp_str = str(temperature) if temperature is not None else "default"
         cache_key = f"litellm_{deployment_name}_{temp_str}"
 
-        if cache_key in self.llm_cache:
-            return self.llm_cache[cache_key]
 
         config = self._resolve_model_config(model, deployment_name)
 
