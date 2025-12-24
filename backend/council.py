@@ -101,7 +101,7 @@ from .tools import get_available_tools
 from .memory import CouncilMemorySystem
 
 # Import router module based on configuration
-# Note: Ollama is now integrated into litellm router (use ROUTER_TYPE=litellm with USE_OLLAMA_MODELS=true)
+# Note: Ollama is now integrated into litellm router (use ROUTER_TYPE=litellm)
 if ROUTER_TYPE == "openrouter":
     from .openrouter import query_models_parallel, query_model, query_models_streaming, build_message_content
 elif ROUTER_TYPE == "litellm":
