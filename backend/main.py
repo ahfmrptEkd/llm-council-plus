@@ -443,6 +443,7 @@ async def get_available_models():
 
     # Check if using Ollama via litellm
     use_ollama = os.getenv("USE_OLLAMA_MODELS", "false").lower() == "true"
+    logger.info(f"get_available_models: ROUTER_TYPE={ROUTER_TYPE}, use_ollama={use_ollama}")
     if ROUTER_TYPE == "litellm" and use_ollama:
         # Fetch from Ollama local API
         try:
@@ -474,6 +475,116 @@ async def get_available_models():
 
         except httpx.RequestError as e:
             raise HTTPException(status_code=503, detail=f"Cannot connect to Ollama: {str(e)}")
+
+    elif ROUTER_TYPE == "litellm" and not use_ollama:
+        # Using litellm with cloud models - load from shared/llm/config YAML files
+        try:
+            import yaml
+            from pathlib import Path
+            
+            # Load model deployments and pricing from shared config
+            shared_dir = Path(__file__).parent.parent / "shared" / "llm" / "config"
+            deployments_path = shared_dir / "model_deployments.yaml"
+            pricing_path = shared_dir / "model_pricing.yaml"
+            
+            if not deployments_path.exists():
+                raise HTTPException(status_code=503, detail="Model deployments config not found")
+            
+            with open(deployments_path, "r") as f:
+                deployments_config = yaml.safe_load(f)
+            
+            pricing_config = {}
+            if pricing_path.exists():
+                with open(pricing_path, "r") as f:
+                    pricing_config = yaml.safe_load(f) or {}
+            
+            models = []
+            
+            # Extract provider name from model name
+            def _get_provider_from_model(model_id: str) -> str:
+                model_lower = model_id.lower()
+                if "gpt" in model_lower:
+                    return "Azure OpenAI"
+                elif "claude" in model_lower:
+                    return "Azure Anthropic"
+                elif "deepseek" in model_lower:
+                    return "Azure (DeepSeek)"
+                elif "llama" in model_lower:
+                    return "Azure (Llama)"
+                elif "phi" in model_lower:
+                    return "Azure (Phi)"
+                elif "grok" in model_lower:
+                    return "xAI"
+                elif "gemini" in model_lower:
+                    return "Google"
+                elif "ollama" in model_lower:
+                    return "Ollama (Local)"
+                return "Unknown"
+            
+            # Flatten deployments config and build model list
+            for category, category_models in deployments_config.items():
+                if not isinstance(category_models, dict):
+                    continue
+
+                # Skip ollama models when USE_OLLAMA_MODELS is false
+                if category == "ollama":
+                    continue
+
+                for model_id, deployment_name in category_models.items():
+                    # Skip embedding models
+                    if category == "embedding":
+                        continue
+                    
+                    # Get pricing
+                    category_pricing = pricing_config.get(category, {})
+                    model_pricing = category_pricing.get(model_id, {})
+                    
+                    if isinstance(model_pricing, dict):
+                        input_price = model_pricing.get("input", 0.0)
+                        output_price = model_pricing.get("output", 0.0)
+                    else:
+                        # Fallback: single value means free
+                        input_price = 0.0
+                        output_price = 0.0
+                    
+                    is_free = input_price == 0 and output_price == 0
+                    
+                    # Format model name for display
+                    display_name = model_id.replace("-", " ").title()
+                    if "gpt" in model_id.lower():
+                        display_name = model_id.upper()
+                    elif "claude" in model_id.lower():
+                        display_name = model_id.replace("-", " ").title()
+                    
+                    models.append({
+                        "id": model_id,
+                        "name": display_name,
+                        "provider": _get_provider_from_model(model_id),
+                        "context": "128K",  # Default, can be enhanced later
+                        "contextLength": 128000,
+                        "inputPrice": _format_price(input_price),
+                        "outputPrice": _format_price(output_price),
+                        "inputPriceRaw": input_price,
+                        "outputPriceRaw": output_price,
+                        "tier": _get_tier(input_price, output_price, is_free),
+                        "isFree": is_free,
+                        "description": f"Available via LiteLLM ({category})",
+                        "modality": "text->text",
+                        "supportsImages": "multimodal" in model_id.lower() or "phi-4-multimodal" in model_id.lower(),
+                        "supportsAudio": False,
+                    })
+            
+            # Sort by output price (cheapest first), then by name
+            models.sort(key=lambda m: (m["outputPriceRaw"], m["name"]))
+            
+            from .config import MAX_COUNCIL_MODELS
+            result = {"models": models, "router_type": "litellm", "use_ollama": False, "count": len(models), "max_models": MAX_COUNCIL_MODELS}
+            _models_cache = {"data": result, "timestamp": time.time()}
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to load LiteLLM models: {e}")
+            raise HTTPException(status_code=503, detail=f"Failed to load LiteLLM models: {str(e)}")
 
     else:
         # Fetch from OpenRouter API
