@@ -29,7 +29,7 @@ else:
         # Check if using Ollama models or cloud models
         COUNCIL_MODELS = [
                 "gpt-5.1",
-                "gemini-2.5-pro",
+                "gemini-3-pro",
                 "claude-sonnet-4.5",
                 "grok-4",
             ]
@@ -49,7 +49,7 @@ CHAIRMAN_MODEL = os.getenv("CHAIRMAN_MODEL")
 if not CHAIRMAN_MODEL:
     # Default chairman model based on router type
     if ROUTER_TYPE == "litellm":
-        CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
+        CHAIRMAN_MODEL = "gemini-3-pro"
     else:  # openrouter (default)
         CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
 
@@ -164,7 +164,7 @@ def reload_config():
     CHAIRMAN_MODEL = os.getenv("CHAIRMAN_MODEL")
     if not CHAIRMAN_MODEL:
         if ROUTER_TYPE == "litellm":
-            CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
+            CHAIRMAN_MODEL = "gemini-3-pro"
         else:  # openrouter (default)
             CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
 
