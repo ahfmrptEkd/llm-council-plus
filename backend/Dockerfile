@@ -21,6 +21,9 @@ COPY VERSION /app/VERSION
 # Copy application code into backend package
 COPY backend/ /app/backend/
 
+# Copy shared module (required by litellm_router)
+COPY shared/ /app/shared/
+
 # Create data directory with correct permissions
 RUN mkdir -p /app/data/conversations \
     && chown -R appuser:appgroup /app
