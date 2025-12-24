@@ -90,6 +90,33 @@ export const api = {
   },
 
   /**
+   * Login with username and password.
+   * Public endpoint - no auth required.
+   * @param {string} username - The username
+   * @param {string} password - The password
+   * @returns {Promise<{success: boolean, user: {username: string}, token: string, expiresAt: number, error?: string}>}
+   */
+  async login(username, password) {
+    const response = await fetch(`${API_BASE}/api/auth`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username,
+        password,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Login failed');
+    }
+
+    return response.json();
+  },
+
+  /**
    * Upload and parse a file. Requires authentication.
    * @param {File} file - The file to upload
    * @returns {Promise<{filename: string, file_type: string, content: string, char_count: number}>}

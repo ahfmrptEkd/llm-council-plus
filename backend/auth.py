@@ -205,6 +205,13 @@ def authenticate(username: str, password: str) -> LoginResponse:
     Returns:
         LoginResponse with success status and JWT token if successful
     """
+    if not AUTH_ENABLED:
+        logger.warning("Authentication is disabled (AUTH_ENABLED=false)")
+        return LoginResponse(
+            success=False,
+            error="Authentication is disabled"
+        )
+
     if not username or not password:
         return LoginResponse(
             success=False,
@@ -292,6 +299,12 @@ def validate_auth_token(token: str) -> ValidateResponse:
     Returns:
         ValidateResponse with success status and user info if valid
     """
+    if not AUTH_ENABLED:
+        return ValidateResponse(
+            success=False,
+            error="Authentication is disabled"
+        )
+
     if not token:
         return ValidateResponse(
             success=False,

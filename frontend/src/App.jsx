@@ -99,7 +99,12 @@ function App() {
       })
       .catch((err) => {
         console.error('Failed to check auth status:', err);
-        // Default to auth enabled if check fails
+        // Default to auth disabled if check fails (fail open for development)
+        setAuthEnabled(false);
+        if (!isAuthenticated) {
+          // Auto-login as guest when auth check fails
+          login('guest', 'no-auth-mode', Date.now() + 365 * 24 * 60 * 60 * 1000);
+        }
         setAuthChecked(true);
       });
   }, [setupChecked, setupRequired]);

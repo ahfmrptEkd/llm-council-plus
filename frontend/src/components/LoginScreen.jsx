@@ -48,21 +48,9 @@ export default function LoginScreen({ onLogin }) {
     setIsLoading(true);
 
     try {
-      const apiBase = import.meta.env.VITE_API_BASE || '';
-      const response = await fetch(`${apiBase}/api/auth`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: selectedUser,
-          password,
-        }),
-      });
+      const data = await api.login(selectedUser, password);
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
+      if (!data.success) {
         setError(data.error || 'Login failed');
         return;
       }
