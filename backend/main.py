@@ -441,42 +441,8 @@ async def get_available_models():
     if _models_cache["data"] and (time.time() - _models_cache["timestamp"]) < _MODELS_CACHE_TTL:
         return _models_cache["data"]
 
-    # Check if using Ollama via litellm
-    use_ollama = os.getenv("USE_OLLAMA_MODELS", "false").lower() == "true"
-    logger.info(f"get_available_models: ROUTER_TYPE={ROUTER_TYPE}, use_ollama={use_ollama}")
-    if ROUTER_TYPE == "litellm" and use_ollama:
-        # Fetch from Ollama local API
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"http://{OLLAMA_HOST}/api/tags", timeout=10.0)
-                if response.status_code != 200:
-                    raise HTTPException(status_code=503, detail="Failed to fetch Ollama models")
-
-                data = response.json()
-                models = []
-                for model in data.get("models", []):
-                    models.append({
-                        "id": f"ollama/{model['name']}",
-                        "name": model["name"],
-                        "provider": "Ollama (Local)",
-                        "context": "N/A",
-                        "inputPrice": "FREE",
-                        "outputPrice": "FREE",
-                        "tier": "free",
-                        "isFree": True,
-                        "description": f"Local model: {model.get('details', {}).get('family', 'Unknown')}",
-                        "modality": "text->text",
-                    })
-
-                from .config import MAX_COUNCIL_MODELS
-                result = {"models": models, "router_type": "litellm", "use_ollama": True, "max_models": MAX_COUNCIL_MODELS}
-                _models_cache = {"data": result, "timestamp": time.time()}
-                return result
-
-        except httpx.RequestError as e:
-            raise HTTPException(status_code=503, detail=f"Cannot connect to Ollama: {str(e)}")
-
-    elif ROUTER_TYPE == "litellm" and not use_ollama:
+    logger.info(f"get_available_models: ROUTER_TYPE={ROUTER_TYPE}")
+    if ROUTER_TYPE == "litellm":
         # Using litellm with cloud models - load from shared/llm/config YAML files
         try:
             import yaml
@@ -526,14 +492,11 @@ async def get_available_models():
                 if not isinstance(category_models, dict):
                     continue
 
-                # Skip ollama models when USE_OLLAMA_MODELS is false
-                if category == "ollama":
+                # Skip embedding models category
+                if category == "embedding":
                     continue
 
                 for model_id, deployment_name in category_models.items():
-                    # Skip embedding models
-                    if category == "embedding":
-                        continue
                     
                     # Get pricing
                     category_pricing = pricing_config.get(category, {})
@@ -578,7 +541,7 @@ async def get_available_models():
             models.sort(key=lambda m: (m["outputPriceRaw"], m["name"]))
             
             from .config import MAX_COUNCIL_MODELS
-            result = {"models": models, "router_type": "litellm", "use_ollama": False, "count": len(models), "max_models": MAX_COUNCIL_MODELS}
+            result = {"models": models, "router_type": "litellm", "count": len(models), "max_models": MAX_COUNCIL_MODELS}
             _models_cache = {"data": result, "timestamp": time.time()}
             return result
             
