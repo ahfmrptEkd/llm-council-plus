@@ -82,6 +82,8 @@ The system supports **three router types** via `ROUTER_TYPE` environment variabl
 - Retry strategy: Max 2 retries with exponential backoff (2s → 30s cap)
 
 **`council.py`** - The Core Logic
+- Router-agnostic implementation (works with OpenRouter, LiteLLM, Ollama)
+- Dynamically imports correct router module based on `ROUTER_TYPE`
 - `stage1_collect_responses()`: Parallel queries to all council models
 - `stage2_collect_rankings()`:
   - Anonymizes responses as "Response A, B, C, etc."
@@ -104,6 +106,37 @@ The system supports **three router types** via `ROUTER_TYPE` environment variabl
 - SSE streaming endpoints for real-time responses
 - Setup wizard endpoint (`POST /api/setup/config`)
 - Hot reload triggers after setup config save
+
+### Shared Module Structure (`shared/llm/`)
+
+The shared LLM module provides unified multi-provider support for LiteLLM router:
+
+**`llm_manager.py`** - Core LLM Manager
+- `LLMManager` class: Singleton pattern for managing LLM instances
+- `_load_model_deployments()`: Loads model aliases from YAML config
+- `get_llm()`: Factory method returning `ChatLiteLLM` instances with provider-specific config
+- `_resolve_model_config()`: Provider detection and configuration resolution
+- `invoke_with_tracking()`: Async invocation with cost tracking and Langfuse integration
+- `_extract_token_usage()`: Token usage extraction from LLM responses
+- Langfuse integration: Auto-configured if `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` set
+- LLM instance caching for performance
+
+**`cost_logger.py`**
+- Tracks token usage and costs per model
+- Uses pricing from `config/model_pricing.yaml`
+- Provides session summaries and detailed cost breakdowns
+
+**`config/model_deployments.yaml`**
+- Maps user-friendly model aliases to provider-specific deployment names
+- Example: `gpt-5-mini` → `gpt-5-mini-prod` (Azure deployment name)
+- Categories: GPT, Claude, DeepSeek, Llama, Phi, Gemini, Grok, Ollama, Embeddings
+- Supports 20+ model aliases across 5+ providers
+
+**`config/model_pricing.yaml`**
+- Defines input/output token costs per 1K tokens (USD)
+- Used by `CostLogger` for accurate cost tracking
+- Ollama models: Free (0.0000 cost)
+- Cloud models: Provider-specific pricing
 
 ### Frontend Structure (`frontend/src/`)
 
@@ -216,18 +249,86 @@ volumes:
 
 ## Environment Variables
 
-### Required
-- `OPENROUTER_API_KEY` - OpenRouter API key (or use Ollama)
+### Router Configuration
 
-### Optional
-- `ROUTER_TYPE` - "openrouter" (default) or "ollama"
-- `AUTH_ENABLED` - "true" to enable authentication
-- `JWT_SECRET` - Secret for JWT tokens
-- `AUTH_USERS_JSON` - JSON object of username:password pairs
-- `TAVILY_API_KEY` - For web search feature
-- `GOOGLE_DRIVE_FOLDER_ID` - For Drive integration
-- `COUNCIL_MODELS` - Comma-separated model list
+**Router Type Selection:**
+- `ROUTER_TYPE` - Router type: "openrouter" (default), "litellm"
+  - For local models: Use `ROUTER_TYPE=litellm` with `USE_OLLAMA_MODELS=true`
+
+**OpenRouter (when `ROUTER_TYPE=openrouter`):**
+- `OPENROUTER_API_KEY` - **Required** for OpenRouter
+- `OPENROUTER_API_URL` - API endpoint (default: `https://openrouter.ai/api/v1/chat/completions`)
+
+**LiteLLM Multi-Provider (when `ROUTER_TYPE=litellm`):**
+
+*Azure Configuration:*
+- `AZURE_PROJECT_ENDPOINT` - Azure OpenAI endpoint (for GPT, DeepSeek, Llama)
+- `AZURE_PROJECT_ANTHROPIC_ENDPOINT` - Azure Anthropic endpoint (for Claude)
+- `AZURE_PROJECT_EXTRA_ENDPOINT` - Azure extra endpoint (for Phi models)
+- `AZURE_API_KEY` - Shared API key for all Azure services
+
+*Google Gemini (choose one):*
+- `GEMINI_AI_API_KEY` - Google AI Studio direct API key
+- OR use Vertex AI:
+  - `VERTEX_PROJECT_ID` - GCP project ID
+  - `GOOGLE_CLOUD_LOCATION` - GCP region (default: `us-central1`)
+
+*xAI Grok:*
+- `GROK_API_KEY` - Grok API key
+
+*Ollama (local models):*
+- `USE_OLLAMA_MODELS` - Set to "true" to use Ollama models with LiteLLM
+- `OLLAMA_HOST` - Ollama server address (default: `localhost:11434`)
+  - For Docker: Use `host.docker.internal:11434` if Ollama runs on host
+
+### Model Configuration
+
+- `COUNCIL_MODELS` - Comma-separated model list (format depends on router type)
+  - OpenRouter: `openai/gpt-5.1,anthropic/claude-sonnet-4.5`
+  - LiteLLM cloud: `gpt-5-mini,gemini-2.5-pro,claude-sonnet-4.5`
+  - LiteLLM Ollama: `ollama/deepseek-r1:latest,ollama/llama3.1:latest`
 - `CHAIRMAN_MODEL` - Model for final synthesis
+- `MAX_COUNCIL_MODELS` - Maximum council models allowed (default: 5)
+
+### Monitoring & Observability
+
+- `LANGFUSE_PUBLIC_KEY` - Langfuse public key for LLM monitoring
+- `LANGFUSE_SECRET_KEY` - Langfuse secret key
+- `LANGFUSE_HOST` - Langfuse host URL (default: `http://localhost:3000`)
+
+### Authentication (Optional)
+
+- `AUTH_ENABLED` - "true" to enable authentication (default: false)
+- `JWT_SECRET` - Secret for JWT tokens (required when auth enabled)
+- `AUTH_USERS_JSON` - JSON object of username:password pairs
+
+### Features
+
+- `TAVILY_API_KEY` - For web search feature (Tavily)
+- `EXA_API_KEY` - For web search feature (Exa, alternative to Tavily)
+- `ENABLE_TAVILY` - Enable Tavily integration (default: false)
+- `ENABLE_EXA` - Enable Exa integration (default: false)
+- `ENABLE_MEMORY` - Enable memory system (default: true)
+- `ENABLE_OPENAI_EMBEDDINGS` - Use OpenAI embeddings instead of local (default: false)
+- `OPENAI_API_KEY` - OpenAI API key (for embeddings if enabled)
+- `ENABLE_LANGGRAPH` - Enable LangGraph workflows (default: false)
+
+### Storage
+
+- `DATABASE_TYPE` - Storage backend: "json" (default), "postgresql", "mysql"
+- `POSTGRESQL_URL` - PostgreSQL connection URL
+- `MYSQL_URL` - MySQL connection URL
+- `DATA_DIR` - Data directory for JSON storage (default: `data/conversations`)
+
+### Integration
+
+- `GOOGLE_DRIVE_FOLDER_ID` - Google Drive folder ID for exports
+- `GOOGLE_SERVICE_ACCOUNT_FILE` - Path to service account JSON
+
+### Performance
+
+- `DEFAULT_TIMEOUT` - Default API timeout in seconds (default: 120.0)
+- `TITLE_GENERATION_TIMEOUT` - Title generation timeout (default: 180.0)
 
 ## Common Gotchas
 
@@ -235,6 +336,18 @@ volumes:
 2. **CORS Issues**: Frontend must match allowed origins in CORS middleware
 3. **Docker Restart**: Use `docker compose up -d`, not `docker restart`
 4. **HTTPS**: If you enable HTTPS in nginx, ensure certs are mounted correctly
+5. **LiteLLM Model Names**: Use aliases from `model_deployments.yaml`, not raw provider names
+   - Correct: `gpt-5-mini`, `claude-sonnet-4.5`, `gemini-2.5-pro`
+   - Incorrect: `gpt-5-mini-prod`, `claude-sonnet-4-5-prod` (these are deployment names)
+6. **Ollama Integration**: When using Ollama with LiteLLM:
+   - Set `ROUTER_TYPE=litellm` (not "ollama")
+   - Set `USE_OLLAMA_MODELS=true`
+   - Model names must include prefix: `ollama/deepseek-r1:latest`
+7. **Langfuse Monitoring**: Auto-enabled if both keys are set, no manual configuration needed
+8. **Azure Endpoints**: Multiple Azure endpoints supported for different model families
+   - Main: GPT, DeepSeek, Llama
+   - Anthropic: Claude models
+   - Extra: Phi models
 
 ## Data Flow Summary
 
