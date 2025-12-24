@@ -111,6 +111,8 @@ if ROUTER_TYPE == "ollama":
         return text
 elif ROUTER_TYPE == "openrouter":
     from .openrouter import query_models_parallel, query_model, query_models_streaming, build_message_content
+elif ROUTER_TYPE == "litellm":
+    from .litellm_router import query_models_parallel, query_model, query_models_streaming, build_message_content
 else:
     raise ValueError(f"Invalid ROUTER_TYPE: {ROUTER_TYPE}")
 
