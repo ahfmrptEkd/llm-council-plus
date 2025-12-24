@@ -29,7 +29,6 @@ The system supports **three router types** via `ROUTER_TYPE` environment variabl
 
 1. **OpenRouter** (default): Cloud-based access to 200+ models
 2. **LiteLLM**: Multi-provider unified interface (Azure, GCP, xAI, Ollama)
-3. **Ollama** (deprecated): Use `ROUTER_TYPE=litellm` with `USE_OLLAMA_MODELS=true` instead
 
 **LiteLLM Benefits:**
 - Enterprise multi-cloud support (Azure OpenAI, Azure Anthropic, Google Gemini, xAI Grok)
@@ -43,7 +42,7 @@ The system supports **three router types** via `ROUTER_TYPE` environment variabl
 **`config.py`**
 - Contains `COUNCIL_MODELS` (list of model identifiers, format varies by router type)
 - Contains `CHAIRMAN_MODEL` (model that synthesizes final answer)
-- `ROUTER_TYPE` selector: "openrouter", "litellm" (supports Ollama via `USE_OLLAMA_MODELS=true`)
+- `ROUTER_TYPE` selector: "openrouter", "litellm" (supports Ollama)
 - `reload_config()` function for hot reload without container restart
 - Default models per router:
   - OpenRouter: `openai/gpt-5.1`, `google/gemini-3-pro-preview`, `anthropic/claude-sonnet-4.5`, `x-ai/grok-4`
@@ -253,7 +252,6 @@ volumes:
 
 **Router Type Selection:**
 - `ROUTER_TYPE` - Router type: "openrouter" (default), "litellm"
-  - For local models: Use `ROUTER_TYPE=litellm` with `USE_OLLAMA_MODELS=true`
 
 **OpenRouter (when `ROUTER_TYPE=openrouter`):**
 - `OPENROUTER_API_KEY` - **Required** for OpenRouter
@@ -277,7 +275,6 @@ volumes:
 - `GROK_API_KEY` - Grok API key
 
 *Ollama (local models):*
-- `USE_OLLAMA_MODELS` - Set to "true" to use Ollama models with LiteLLM
 - `OLLAMA_HOST` - Ollama server address (default: `localhost:11434`)
   - For Docker: Use `host.docker.internal:11434` if Ollama runs on host
 
@@ -341,7 +338,6 @@ volumes:
    - Incorrect: `gpt-5-mini-prod`, `claude-sonnet-4-5-prod` (these are deployment names)
 6. **Ollama Integration**: When using Ollama with LiteLLM:
    - Set `ROUTER_TYPE=litellm` (not "ollama")
-   - Set `USE_OLLAMA_MODELS=true`
    - Model names must include prefix: `ollama/deepseek-r1:latest`
 7. **Langfuse Monitoring**: Auto-enabled if both keys are set, no manual configuration needed
 8. **Azure Endpoints**: Multiple Azure endpoints supported for different model families
