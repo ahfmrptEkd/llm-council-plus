@@ -33,7 +33,7 @@ pymysql>=1.1.0
 langchain>=0.1.0
 langchain-core>=0.1.0
 langchain-community>=0.0.20
-langchain-litellm>=0.1.0
+langchain-litellm==0.3.3
 wikipedia>=1.4.0
 arxiv>=2.0.0
 yfinance>=0.2.30

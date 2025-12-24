@@ -162,8 +162,12 @@ class LLMManager:
             if not endpoint or not api_key:
                 raise ValueError("AZURE_PROJECT_ANTHROPIC_ENDPOINT and AZURE_API_KEY must be set.")
 
-            # Azure Anthropic uses azure_ai/ prefix in LiteLLM
-            config.update({"model": f"azure_ai/{deployment_name}", "api_base": endpoint, "api_key": api_key})
+            # Azure Anthropic Foundry uses anthropic/ prefix with custom api_base
+            config.update({
+                "model": f"anthropic/{deployment_name}",
+                "api_base": endpoint,
+                "api_key": api_key
+            })
 
         elif "grok" in model_lower:
             # LiteLLM uses XAI_API_KEY for xAI/Grok models
