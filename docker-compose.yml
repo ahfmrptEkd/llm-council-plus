@@ -10,8 +10,6 @@ services:
       - "8001:8001"
     env_file:
       - .env
-      - path: .env.production
-        required: false
     environment:
       # Authentication
       - AUTH_ENABLED=${AUTH_ENABLED:-false}
