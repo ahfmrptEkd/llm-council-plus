@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Router type: 'openrouter', 'ollama', or 'litellm'
+# Router type: 'openrouter' or 'litellm'
+# For Ollama models, use ROUTER_TYPE=litellm with USE_OLLAMA_MODELS=true
 ROUTER_TYPE = os.getenv("ROUTER_TYPE", "openrouter").lower()
 
 # OpenRouter settings
@@ -23,29 +24,34 @@ OLLAMA_HOST = os.getenv("OLLAMA_HOST", "localhost:11434")
 COUNCIL_MODELS_STR = os.getenv("COUNCIL_MODELS")
 if COUNCIL_MODELS_STR:
     COUNCIL_MODELS = [model.strip() for model in COUNCIL_MODELS_STR.split(",")]
-    else:
-        # Default models based on router type
-        if ROUTER_TYPE == "ollama":
+else:
+    # Default models based on router type
+    if ROUTER_TYPE == "litellm":
+        # Check if using Ollama models or cloud models
+        use_ollama = os.getenv("USE_OLLAMA_MODELS", "false").lower() == "true"
+        if use_ollama:
+            # Ollama local models
             COUNCIL_MODELS = [
-                "deepseek-r1:latest",
-                "llama3.1:latest",
-                "qwen3:latest",
-                "gemma3:latest",
+                "ollama/deepseek-r1:latest",
+                "ollama/llama3.1:latest",
+                "ollama/qwen3:latest",
+                "ollama/gemma3:latest",
             ]
-        elif ROUTER_TYPE == "litellm":
+        else:
+            # Cloud models (Azure, Gemini, etc.)
             COUNCIL_MODELS = [
-                "gpt-5-mini",
+                "gpt-5.1",
                 "gemini-2.5-pro",
                 "claude-sonnet-4.5",
                 "grok-4",
             ]
-        else:
-            COUNCIL_MODELS = [
-                "openai/gpt-5.1",
-                "google/gemini-3-pro-preview",
-                "anthropic/claude-sonnet-4.5",
-                "x-ai/grok-4",
-            ]
+    else:  # openrouter (default)
+        COUNCIL_MODELS = [
+            "openai/gpt-5.1",
+            "google/gemini-3-pro-preview",
+            "anthropic/claude-sonnet-4.5",
+            "x-ai/grok-4",
+        ]
 
 # Maximum council models (default 5, can be overridden via .env)
 MAX_COUNCIL_MODELS = int(os.getenv("MAX_COUNCIL_MODELS", "5"))
@@ -54,11 +60,14 @@ MAX_COUNCIL_MODELS = int(os.getenv("MAX_COUNCIL_MODELS", "5"))
 CHAIRMAN_MODEL = os.getenv("CHAIRMAN_MODEL")
 if not CHAIRMAN_MODEL:
     # Default chairman model based on router type
-    if ROUTER_TYPE == "ollama":
-        CHAIRMAN_MODEL = "gemma3:latest"
-    elif ROUTER_TYPE == "litellm":
-        CHAIRMAN_MODEL = "gemini-2.5-pro"
-    else:
+    if ROUTER_TYPE == "litellm":
+        # Use Ollama model if USE_OLLAMA_MODELS is set
+        use_ollama = os.getenv("USE_OLLAMA_MODELS", "false").lower() == "true"
+        if use_ollama:
+            CHAIRMAN_MODEL = "ollama/gemma3:latest"  # Same as old ollama router
+        else:
+            CHAIRMAN_MODEL = "gemini-2.5-pro"
+    else:  # openrouter (default)
         CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
 
 # Data directory for conversation storage
@@ -95,9 +104,10 @@ GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv(
 GOOGLE_DRIVE_ENABLED = bool(GOOGLE_DRIVE_FOLDER_ID)
 
 # Validate router type at import time (safe)
-if ROUTER_TYPE not in ["openrouter", "ollama", "litellm"]:
+if ROUTER_TYPE not in ["openrouter", "litellm"]:
     raise ValueError(
-        f"Invalid ROUTER_TYPE: {ROUTER_TYPE}. Must be 'openrouter', 'ollama', or 'litellm'"
+        f"Invalid ROUTER_TYPE: {ROUTER_TYPE}. Must be 'openrouter' or 'litellm'. "
+        f"For Ollama models, use ROUTER_TYPE=litellm with USE_OLLAMA_MODELS=true"
     )
 
 
@@ -111,7 +121,7 @@ def validate_openrouter_config():
     if ROUTER_TYPE == "openrouter" and not OPENROUTER_API_KEY:
         raise ValueError(
             "OPENROUTER_API_KEY is required when ROUTER_TYPE=openrouter. "
-            "Get your key at https://openrouter.ai/ or use ROUTER_TYPE=ollama for local models."
+            "Get your key at https://openrouter.ai/ or use ROUTER_TYPE=litellm with USE_OLLAMA_MODELS=true for local models."
         )
 
 
@@ -151,21 +161,26 @@ def reload_config():
     if council_models_str:
         COUNCIL_MODELS = [model.strip() for model in council_models_str.split(",")]
     else:
-        if ROUTER_TYPE == "ollama":
-            COUNCIL_MODELS = [
-                "deepseek-r1:latest",
-                "llama3.1:latest",
-                "qwen3:latest",
-                "gemma3:latest",
-            ]
-        elif ROUTER_TYPE == "litellm":
-            COUNCIL_MODELS = [
-                "gpt-5-mini",
-                "gemini-2.5-pro",
-                "claude-sonnet-4.5",
-                "grok-4",
-            ]
-        else:
+        if ROUTER_TYPE == "litellm":
+            # Check if using Ollama models or cloud models
+            use_ollama = os.getenv("USE_OLLAMA_MODELS", "false").lower() == "true"
+            if use_ollama:
+                # Ollama local models
+                COUNCIL_MODELS = [
+                    "ollama/deepseek-r1:latest",
+                    "ollama/llama3.1:latest",
+                    "ollama/qwen3:latest",
+                    "ollama/gemma3:latest",
+                ]
+            else:
+                # Cloud models (Azure, Gemini, etc.)
+                COUNCIL_MODELS = [
+                    "gpt-5.1",
+                    "gemini-2.5-pro",
+                    "claude-sonnet-4.5",
+                    "grok-4",
+                ]
+        else:  # openrouter (default)
             COUNCIL_MODELS = [
                 "openai/gpt-5.1",
                 "google/gemini-3-pro-preview",
@@ -178,11 +193,14 @@ def reload_config():
     # Chairman model
     CHAIRMAN_MODEL = os.getenv("CHAIRMAN_MODEL")
     if not CHAIRMAN_MODEL:
-        if ROUTER_TYPE == "ollama":
-            CHAIRMAN_MODEL = "gemma3:latest"
-        elif ROUTER_TYPE == "litellm":
-            CHAIRMAN_MODEL = "gemini-2.5-pro"
-        else:
+        if ROUTER_TYPE == "litellm":
+            # Use Ollama model if USE_OLLAMA_MODELS is set
+            use_ollama = os.getenv("USE_OLLAMA_MODELS", "false").lower() == "true"
+            if use_ollama:
+                CHAIRMAN_MODEL = "ollama/gemma3:latest"
+            else:
+                CHAIRMAN_MODEL = "gemini-2.5-pro"
+        else:  # openrouter (default)
             CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
 
     # Data directory

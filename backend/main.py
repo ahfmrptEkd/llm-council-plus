@@ -193,7 +193,7 @@ async def get_api_version():
 class SetupConfigRequest(BaseModel):
     """Request to configure the application."""
     openrouter_api_key: Optional[str] = Field(default=None, min_length=10, max_length=200)
-    router_type: Optional[str] = Field(default=None, pattern="^(openrouter|ollama)$")
+    router_type: Optional[str] = Field(default=None, pattern="^(openrouter|litellm)$")
     tavily_api_key: Optional[str] = Field(default=None, max_length=200)  # Optional: for web search
     exa_api_key: Optional[str] = Field(default=None, max_length=200)  # Optional: for AI-powered web search
     # Authentication settings
@@ -429,7 +429,7 @@ def _extract_provider(model_id: str, model_name: str) -> str:
 @app.get("/api/models")
 async def get_available_models():
     """
-    Get available models from OpenRouter or Ollama.
+    Get available models from OpenRouter, LiteLLM (cloud), or LiteLLM (Ollama).
     Returns formatted model list with pricing and capabilities.
     Cached for 5 minutes to reduce API calls.
     """
@@ -441,7 +441,9 @@ async def get_available_models():
     if _models_cache["data"] and (time.time() - _models_cache["timestamp"]) < _MODELS_CACHE_TTL:
         return _models_cache["data"]
 
-    if ROUTER_TYPE == "ollama":
+    # Check if using Ollama via litellm
+    use_ollama = os.getenv("USE_OLLAMA_MODELS", "false").lower() == "true"
+    if ROUTER_TYPE == "litellm" and use_ollama:
         # Fetch from Ollama local API
         try:
             async with httpx.AsyncClient() as client:
@@ -453,7 +455,7 @@ async def get_available_models():
                 models = []
                 for model in data.get("models", []):
                     models.append({
-                        "id": model["name"],
+                        "id": f"ollama/{model['name']}",
                         "name": model["name"],
                         "provider": "Ollama (Local)",
                         "context": "N/A",
@@ -466,7 +468,7 @@ async def get_available_models():
                     })
 
                 from .config import MAX_COUNCIL_MODELS
-                result = {"models": models, "router_type": "ollama", "max_models": MAX_COUNCIL_MODELS}
+                result = {"models": models, "router_type": "litellm", "use_ollama": True, "max_models": MAX_COUNCIL_MODELS}
                 _models_cache = {"data": result, "timestamp": time.time()}
                 return result
 

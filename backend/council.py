@@ -101,20 +101,13 @@ from .tools import get_available_tools
 from .memory import CouncilMemorySystem
 
 # Import router module based on configuration
-if ROUTER_TYPE == "ollama":
-    from .ollama import query_models_parallel, query_model, query_models_streaming
-    # Ollama doesn't have build_message_content, provide a fallback
-    def build_message_content(text, images=None):
-        if images:
-            # Ollama may not support images, return text only with warning
-            logger.warning("Ollama router may not support image attachments. Images ignored.")
-        return text
-elif ROUTER_TYPE == "openrouter":
+# Note: Ollama is now integrated into litellm router (use ROUTER_TYPE=litellm with USE_OLLAMA_MODELS=true)
+if ROUTER_TYPE == "openrouter":
     from .openrouter import query_models_parallel, query_model, query_models_streaming, build_message_content
 elif ROUTER_TYPE == "litellm":
     from .litellm_router import query_models_parallel, query_model, query_models_streaming, build_message_content
 else:
-    raise ValueError(f"Invalid ROUTER_TYPE: {ROUTER_TYPE}")
+    raise ValueError(f"Invalid ROUTER_TYPE: {ROUTER_TYPE}. Must be 'openrouter' or 'litellm'")
 
 
 def build_context_prompt(conversation_history: List[Dict[str, Any]], user_query: str) -> str:
