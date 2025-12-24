@@ -84,3 +84,10 @@ gemini:
   gemini-3-flash:
     input: 0.0005
     output: 0.003
+
+# Ollama models (Local models via LiteLLM)
+ollama:
+  deepseek-r1: 0.0000
+  qwen3: 0.0000
+  llama3.1: 0.0000
+  gemma3: 0.0000

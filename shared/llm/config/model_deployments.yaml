@@ -6,8 +6,8 @@
 # GPT models (Azure OpenAI)
 gpt:
   gpt-5-mini: gpt-5-mini-prod
-  gpt-5-chat: gpt-5-chat-prod
-  gpt-5.1-chat: gpt-5.1-chat-prod
+  gpt-5: gpt-5-chat-prod
+  gpt-5.1: gpt-5.1-chat-prod
   gpt-5.1-codex-mini: gpt-5.1-codex-mini-prod
   gpt-oss-120b: gpt-oss-120b-prod
   model-router: model-router-prod
@@ -52,3 +52,10 @@ gemini:
   gemini-2.5-flash: gemini-2.5-flash
   gemini-3-pro: gemini-3-pro-preview
   gemini-3-flash: gemini-3-flash-preview
+
+# Ollama models (Local models via LiteLLM)
+ollama:
+  ollama/deepseek-r1:latest: deepseek-r1:latest
+  ollama/llama3.1:latest: llama3.1:latest
+  ollama/qwen3:latest: qwen3:latest
+  ollama/gemma3:latest: gemma3:latest
