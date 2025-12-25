@@ -188,7 +188,23 @@ export default function LoginScreen({ onLogin, authEnabled }) {
             </div>
             <button
               type="button"
-              onClick={() => onLogin('guest', 'no-auth-mode', Date.now() + 365 * 24 * 60 * 60 * 1000)}
+              onClick={async () => {
+                setIsLoading(true);
+                try {
+                  // Even for guest, we need a valid backend token
+                  // Backend ignores password when auth is disabled
+                  const data = await api.login('guest', 'guest-mode');
+                  if (data.success) {
+                    onLogin(data.user.username, data.token, data.expiresAt);
+                  } else {
+                    setError('Guest login failed: ' + (data.error || 'Unknown error'));
+                  }
+                } catch (err) {
+                  setError('Guest login failed: ' + err.message);
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
               className="guest-button"
               disabled={isLoading}
             >
