@@ -477,8 +477,8 @@ async def get_available_models(router: Optional[str] = None):
         return _models_cache["data"]
 
     logger.info(f"get_available_models: router={active_router}")
-    if active_router == "litellm":
-        # Using litellm with cloud models - load from shared/llm/config YAML files
+    if active_router == "direct" or active_router == "litellm":
+        # Using direct/litellm with cloud models - load from shared/llm/config YAML files
         try:
             import yaml
             from pathlib import Path
@@ -566,7 +566,7 @@ async def get_available_models(router: Optional[str] = None):
                         "outputPriceRaw": output_price,
                         "tier": _get_tier(input_price, output_price, is_free),
                         "isFree": is_free,
-                        "description": f"Available via LiteLLM ({category})",
+                        "description": f"Available via Direct Connection ({category})",
                         "modality": "text->text",
                         "supportsImages": "multimodal" in model_id.lower() or "phi-4-multimodal" in model_id.lower(),
                         "supportsAudio": False,
@@ -576,13 +576,13 @@ async def get_available_models(router: Optional[str] = None):
             models.sort(key=lambda m: (m["outputPriceRaw"], m["name"]))
             
             from .config import MAX_COUNCIL_MODELS
-            result = {"models": models, "router_type": "litellm", "count": len(models), "max_models": MAX_COUNCIL_MODELS}
-            _models_cache = {"data": result, "timestamp": time.time(), "router": "litellm"}
+            result = {"models": models, "router_type": "direct", "count": len(models), "max_models": MAX_COUNCIL_MODELS}
+            _models_cache = {"data": result, "timestamp": time.time(), "router": "direct"}
             return result
             
         except Exception as e:
-            logger.error(f"Failed to load LiteLLM models: {e}")
-            raise HTTPException(status_code=503, detail=f"Failed to load LiteLLM models: {str(e)}")
+            logger.error(f"Failed to load Direct/LiteLLM models: {e}")
+            raise HTTPException(status_code=503, detail=f"Failed to load Direct models: {str(e)}")
 
     else:
         # Fetch from OpenRouter API
