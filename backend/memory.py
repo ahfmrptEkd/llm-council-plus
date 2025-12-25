@@ -13,12 +13,17 @@ from pathlib import Path
 # Try to import heavy dependencies - they are optional
 _MEMORY_AVAILABLE = False
 try:
-    from langchain_community.embeddings import HuggingFaceEmbeddings
+    from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_community.vectorstores import Chroma
     _MEMORY_AVAILABLE = True
 except ImportError:
-    HuggingFaceEmbeddings = None
-    Chroma = None
+    try:
+        from langchain_community.embeddings import HuggingFaceEmbeddings
+        from langchain_community.vectorstores import Chroma
+        _MEMORY_AVAILABLE = True
+    except ImportError:
+        HuggingFaceEmbeddings = None
+        Chroma = None
 
 
 def get_embeddings():
