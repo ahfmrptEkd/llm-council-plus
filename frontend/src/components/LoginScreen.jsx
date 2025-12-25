@@ -135,21 +135,23 @@ export default function LoginScreen({ onLogin, authEnabled }) {
             )}
           </div>
 
-          {/* Password Input (Optional if auth disabled) */}
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
-              Password {authEnabled ? '' : '(Optional)'}
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              className="form-input"
-              disabled={isLoading}
-            />
-          </div>
+          {/* Password Input (Only if auth enabled) */}
+          {authEnabled && (
+            <div className="form-group">
+              <label htmlFor="password" className="form-label">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                className="form-input"
+                disabled={isLoading}
+              />
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (
