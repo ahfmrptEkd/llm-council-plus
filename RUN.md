@@ -7,11 +7,13 @@ Quick start guide to get LLM Council running on your machine.
 ## Prerequisites
 
 ### Required:
+
 - **Python 3.10+** ([Download](https://python.org))
 - **Node.js 18+** ([Download](https://nodejs.org))
 - **uv** - Python package manager ([Install](https://docs.astral.sh/uv/))
 
 ### Optional (for database):
+
 - **PostgreSQL 12+** (if using PostgreSQL storage)
 - **MySQL 8+** (if using MySQL storage)
 
@@ -20,12 +22,14 @@ Quick start guide to get LLM Council running on your machine.
 ## Quick Start (5 minutes)
 
 ### 1. Get OpenRouter API Key
+
 1. Go to [https://openrouter.ai](https://openrouter.ai)
 2. Sign up for a free account
 3. Generate API key
 4. Add credits ($5 recommended for testing)
 
 ### 2. Clone & Setup
+
 ```bash
 # Clone repository
 git clone <your-repo-url>
@@ -41,6 +45,7 @@ cd ..
 ```
 
 ### 3. Configure Environment
+
 ```bash
 # Copy example environment file
 cp .env.example .env
@@ -50,6 +55,7 @@ nano .env  # or use any text editor
 ```
 
 **Required in `.env`:**
+
 ```bash
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
 ```
@@ -59,17 +65,20 @@ OPENROUTER_API_KEY=sk-or-v1-your-key-here
 **Option A: Two Terminals (Recommended)**
 
 Terminal 1 - Backend:
+
 ```bash
 uv run python -m backend.main
 ```
 
 Terminal 2 - Frontend:
+
 ```bash
 cd frontend
 npm run dev
 ```
 
 **Option B: Background Processes**
+
 ```bash
 # Start backend in background
 uv run python -m backend.main &
@@ -80,6 +89,7 @@ npm run dev
 ```
 
 ### 5. Open Application
+
 Open your browser to: **http://localhost:5173**
 
 ---
@@ -89,18 +99,21 @@ Open your browser to: **http://localhost:5173**
 ### LLM Router Type
 
 **OpenRouter (Default):**
+
 ```bash
 ROUTER_TYPE=openrouter
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
 ```
 
 **Ollama (Local Models):**
+
 ```bash
 ROUTER_TYPE=ollama
 OLLAMA_HOST=localhost:11434
 ```
 
 **LiteLLM (Multi-Provider):**
+
 ```bash
 ROUTER_TYPE=litellm
 
@@ -131,6 +144,7 @@ LANGFUSE_HOST=http://localhost:3000  # Optional, defaults to localhost
 
 **Model Aliases (LiteLLM):**
 LiteLLM router uses model aliases defined in `shared/llm/config/model_deployments.yaml`:
+
 - `gpt-5-mini`, `gpt-5-chat`, `gpt-5.1-chat` (Azure OpenAI)
 - `claude-sonnet-4.5`, `claude-opus-4.5` (Azure Anthropic)
 - `deepseek-r1`, `deepseek-v3` (Azure DeepSeek)
@@ -140,6 +154,7 @@ LiteLLM router uses model aliases defined in `shared/llm/config/model_deployment
 - `grok-4`, `grok-4.1-fast` (xAI Grok)
 
 **Default Models per Router:**
+
 - OpenRouter: `openai/gpt-5.1`, `google/gemini-3-pro-preview`, `anthropic/claude-sonnet-4.5`, `x-ai/grok-4`
 - Ollama: `deepseek-r1:latest`, `llama3.1:latest`, `qwen3:latest`, `gemma3:latest`
 - LiteLLM: `gpt-5-mini`, `gemini-2.5-pro`, `claude-sonnet-4.5`, `grok-4`
@@ -147,17 +162,20 @@ LiteLLM router uses model aliases defined in `shared/llm/config/model_deployment
 ### Storage Backend
 
 **JSON (Default - Zero Setup):**
+
 ```bash
 DATABASE_TYPE=json
 ```
 
 **PostgreSQL:**
+
 ```bash
 DATABASE_TYPE=postgresql
 POSTGRESQL_URL=postgresql+psycopg2://user:password@localhost:5432/llmcouncil
 ```
 
 **MySQL:**
+
 ```bash
 DATABASE_TYPE=mysql
 MYSQL_URL=mysql+pymysql://user:password@localhost:3306/llmcouncil
@@ -166,6 +184,7 @@ MYSQL_URL=mysql+pymysql://user:password@localhost:3306/llmcouncil
 ### Feature Flags
 
 **Feature 4: Tools & Memory**
+
 ```bash
 # All free tools enabled by default
 # (Calculator, Wikipedia, ArXiv, DuckDuckGo, Yahoo Finance)
@@ -194,6 +213,7 @@ ENABLE_LANGGRAPH=false
 If using PostgreSQL or MySQL instead of JSON:
 
 **PostgreSQL:**
+
 ```bash
 # Install PostgreSQL
 brew install postgresql  # macOS
@@ -211,6 +231,7 @@ POSTGRESQL_URL=postgresql+psycopg2://your_user:your_password@localhost:5432/llmc
 ```
 
 **MySQL:**
+
 ```bash
 # Install MySQL
 brew install mysql  # macOS
@@ -230,6 +251,7 @@ MYSQL_URL=mysql+pymysql://root:your_password@localhost:3306/llmcouncil
 ```
 
 **Auto Initialization:**
+
 - Tables are created automatically on first run
 - No manual schema setup needed
 
@@ -238,12 +260,14 @@ MYSQL_URL=mysql+pymysql://root:your_password@localhost:3306/llmcouncil
 ## Development Mode
 
 ### Backend Development
+
 ```bash
 # Run with auto-reload
 uv run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 ### Frontend Development
+
 ```bash
 cd frontend
 npm run dev
@@ -251,6 +275,7 @@ npm run dev
 ```
 
 ### View Logs
+
 ```bash
 # Backend logs
 uv run python -m backend.main 2>&1 | tee backend.log
@@ -264,6 +289,7 @@ tail -f backend.log
 ## Testing
 
 ### Test Backend API
+
 ```bash
 # Health check
 curl http://localhost:8001/
@@ -278,6 +304,7 @@ curl -X POST http://localhost:8001/api/conversations \
 ```
 
 ### Test Frontend
+
 1. Open http://localhost:5173
 2. Click "+ New Conversation"
 3. Type a question
@@ -287,18 +314,21 @@ curl -X POST http://localhost:8001/api/conversations \
 ### Test Features
 
 **Test Delete:**
+
 1. Hover over conversation → click ⋮
 2. Click "Delete"
 3. Confirm
 
 **Test Edit Title:**
+
 1. Hover over conversation → click ⋮
 2. Click "Edit title"
 3. Type new title → press Enter
 
 **Test Tools:**
+
 - Ask: "What's the price of AAPL stock?"
-- Ask: "Calculate 12345 * 67890"
+- Ask: "Calculate 12345 \* 67890"
 - Ask: "Search for latest AI news"
 
 ---
@@ -306,6 +336,7 @@ curl -X POST http://localhost:8001/api/conversations \
 ## Troubleshooting
 
 ### Port Already in Use
+
 ```bash
 # Kill process on port 8001 (backend)
 lsof -ti:8001 | xargs kill -9
@@ -315,6 +346,7 @@ lsof -ti:5173 | xargs kill -9
 ```
 
 ### Backend Won't Start
+
 ```bash
 # Check Python version
 python --version  # Must be 3.10+
@@ -325,6 +357,7 @@ uv sync
 ```
 
 ### Frontend Won't Start
+
 ```bash
 # Check Node version
 node --version  # Must be 18+
@@ -336,6 +369,7 @@ npm install
 ```
 
 ### Database Connection Error
+
 ```bash
 # Check database is running
 psql -l  # PostgreSQL
@@ -346,6 +380,7 @@ mysql -u root -p  # MySQL
 ```
 
 ### API Key Issues
+
 ```bash
 # Verify API key in .env
 cat .env | grep OPENROUTER_API_KEY
@@ -356,6 +391,7 @@ curl https://openrouter.ai/api/v1/models \
 ```
 
 ### Memory/Tools Not Working
+
 ```bash
 # Check dependencies installed
 uv pip list | grep -E "langchain|chromadb|sentence-transformers"
@@ -369,6 +405,7 @@ uv sync
 ## Production Deployment
 
 ### Environment Setup
+
 ```bash
 # Use production API keys
 OPENROUTER_API_KEY=your-production-key
@@ -382,6 +419,7 @@ SECRET_KEY=your-secret-key  # Add if implementing auth
 ```
 
 ### Build Frontend
+
 ```bash
 cd frontend
 npm run build
@@ -389,6 +427,7 @@ npm run build
 ```
 
 ### Run Production Backend
+
 ```bash
 # Use production ASGI server
 pip install gunicorn
@@ -396,6 +435,7 @@ gunicorn backend.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8
 ```
 
 ### Serve Frontend
+
 ```bash
 # Option 1: Nginx
 # Configure nginx to serve frontend/dist/
@@ -410,6 +450,7 @@ serve -s frontend/dist -l 5173
 ## Docker Deployment (Optional)
 
 ### Backend Dockerfile
+
 ```dockerfile
 FROM python:3.10
 WORKDIR /app
@@ -420,6 +461,7 @@ EXPOSE 8001
 ```
 
 ### Frontend Dockerfile
+
 ```dockerfile
 FROM node:18
 WORKDIR /app
@@ -432,8 +474,9 @@ EXPOSE 5173
 ```
 
 ### Docker Compose
+
 ```yaml
-version: '3.8'
+version: "3.8"
 services:
   backend:
     build: .
@@ -464,8 +507,20 @@ volumes:
 ```
 
 Run:
+
 ```bash
 docker-compose up -d
+```
+
+### Docker Permission Issues
+
+If you encounter `PermissionError: [Errno 13] Permission denied` when the backend tries to save conversations, it's likely because the `data/conversations` volume on your host is owned by `root`. Fix it by running:
+
+```bash
+# Change ownership to the container user (UID 1000)
+sudo chown -R 1000:1000 data/conversations
+# Restart the container
+docker-compose restart backend
 ```
 
 ---
@@ -473,12 +528,14 @@ docker-compose up -d
 ## Performance Tips
 
 ### Backend:
+
 - Use PostgreSQL/MySQL instead of JSON for better performance
 - Enable database connection pooling
 - Use Redis for caching (future feature)
 - Set `ENABLE_MEMORY=false` if not needed
 
 ### Frontend:
+
 - Build for production: `npm run build`
 - Enable gzip compression
 - Use CDN for static assets
@@ -489,6 +546,7 @@ docker-compose up -d
 ## Monitoring
 
 ### Check System Status
+
 ```bash
 # Backend health
 curl http://localhost:8001/
@@ -499,6 +557,7 @@ curl http://localhost:8001/
 ```
 
 ### View Storage Info
+
 ```bash
 # JSON mode
 ls -lh data/conversations/
@@ -508,6 +567,7 @@ ls -lh data/conversations/
 ```
 
 ### Monitor API Usage
+
 - Check OpenRouter dashboard for usage
 - Monitor token consumption
 - Track TOON savings
@@ -517,6 +577,7 @@ ls -lh data/conversations/
 ## Support
 
 ### Common Commands Reference
+
 ```bash
 # Start backend
 uv run python -m backend.main
@@ -538,6 +599,7 @@ uv sync && cd frontend && npm install
 ```
 
 ### Get Help
+
 - Check documentation in `contributions/` folder
 - Review `.env.example` for configuration options
 - Open issue on GitHub
@@ -563,15 +625,18 @@ cd frontend && npm run dev                 # Start frontend (opens browser)
 ## System Requirements
 
 **Minimum:**
+
 - 2 CPU cores
 - 4GB RAM
 - 2GB disk space
 
 **Recommended:**
+
 - 4+ CPU cores
 - 8GB+ RAM
 - 10GB disk space (for database)
 
 **Platform:**
+
 - macOS, Linux, Windows (WSL2)
 - Docker (optional)
