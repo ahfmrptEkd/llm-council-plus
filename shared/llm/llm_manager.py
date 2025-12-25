@@ -23,6 +23,10 @@ from ..utils.preprocessor import TextPreprocessor
 litellm.set_verbose = False
 litellm.suppress_debug_info = True
 
+# LiteLLM stability settings for parallel calls
+litellm.drop_params = True  # Automatically drop unsupported parameters
+litellm.cache = None        # Disable internal caching to prevent credential leakage/corruption
+
 
 logger = setup_logger("llm_manager")
 
