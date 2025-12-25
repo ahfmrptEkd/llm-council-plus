@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Router type: 'openrouter' or 'litellm'
+# Router type: 'openrouter' or 'direct'
 ROUTER_TYPE = os.getenv("ROUTER_TYPE", "openrouter").lower()
 
 # OpenRouter settings
@@ -25,7 +25,7 @@ if COUNCIL_MODELS_STR:
     COUNCIL_MODELS = [model.strip() for model in COUNCIL_MODELS_STR.split(",")]
 else:
     # Default models based on router type
-    if ROUTER_TYPE == "litellm":
+    if ROUTER_TYPE == "direct" or ROUTER_TYPE == "litellm":
         # Check if using Ollama models or cloud models
         COUNCIL_MODELS = [
                 "gpt-5.1",
@@ -48,7 +48,7 @@ MAX_COUNCIL_MODELS = int(os.getenv("MAX_COUNCIL_MODELS", "5"))
 CHAIRMAN_MODEL = os.getenv("CHAIRMAN_MODEL")
 if not CHAIRMAN_MODEL:
     # Default chairman model based on router type
-    if ROUTER_TYPE == "litellm":
+    if ROUTER_TYPE == "direct" or ROUTER_TYPE == "litellm":
         CHAIRMAN_MODEL = "gemini-3-pro"
     else:  # openrouter (default)
         CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
@@ -87,9 +87,10 @@ GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv(
 GOOGLE_DRIVE_ENABLED = bool(GOOGLE_DRIVE_FOLDER_ID)
 
 # Validate router type at import time (safe)
-if ROUTER_TYPE not in ["openrouter", "litellm"]:
+# Allow 'litellm' for backward compatibility
+if ROUTER_TYPE not in ["openrouter", "direct", "litellm"]:
     raise ValueError(
-        f"Invalid ROUTER_TYPE: {ROUTER_TYPE}. Must be 'openrouter' or 'litellm'. "
+        f"Invalid ROUTER_TYPE: {ROUTER_TYPE}. Must be 'openrouter' or 'direct'. "
     )
 
 def get_available_routers():
@@ -99,10 +100,10 @@ def get_available_routers():
     if OPENROUTER_API_KEY:
         routers.append("openrouter")
     
-    # LiteLLM/Azure is available if keys are present (checking AZURE_API_KEY as primary indicator)
+    # Direct/Azure is available if keys are present (checking AZURE_API_KEY as primary indicator)
     # We could also check for google/anthropic keys but AZURE is the main one for this project context
     if os.getenv("AZURE_API_KEY") or os.getenv("AZURE_PROJECT_ENDPOINT"):
-        routers.append("litellm")
+        routers.append("direct")
         
     return routers
 
@@ -117,7 +118,7 @@ def validate_openrouter_config():
     if ROUTER_TYPE == "openrouter" and not OPENROUTER_API_KEY:
         raise ValueError(
             "OPENROUTER_API_KEY is required when ROUTER_TYPE=openrouter. "
-            "Get your key at https://openrouter.ai/ or use ROUTER_TYPE=litellm"
+            "Get your key at https://openrouter.ai/ or use ROUTER_TYPE=direct"
         )
 
 
@@ -157,7 +158,7 @@ def reload_config():
     if council_models_str:
         COUNCIL_MODELS = [model.strip() for model in council_models_str.split(",")]
     else:
-        if ROUTER_TYPE == "litellm":
+        if ROUTER_TYPE == "direct" or ROUTER_TYPE == "litellm":
             COUNCIL_MODELS = [
                     "gpt-5.1",
                     "gemini-2.5-pro",
@@ -177,7 +178,7 @@ def reload_config():
     # Chairman model
     CHAIRMAN_MODEL = os.getenv("CHAIRMAN_MODEL")
     if not CHAIRMAN_MODEL:
-        if ROUTER_TYPE == "litellm":
+        if ROUTER_TYPE == "direct" or ROUTER_TYPE == "litellm":
             CHAIRMAN_MODEL = "gemini-3-pro"
         else:  # openrouter (default)
             CHAIRMAN_MODEL = "google/gemini-3-pro-preview"

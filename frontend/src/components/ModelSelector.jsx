@@ -494,7 +494,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
                     className={`router-toggle-btn ${activeRouter === r ? 'active' : ''}`}
                     onClick={() => setActiveRouter(r)}
                   >
-                    {r === 'litellm' ? 'Azure/Direct' : 'OpenRouter'}
+                    {r === 'direct' || r === 'litellm' ? 'Direct Connection' : 'OpenRouter'}
                   </button>
                 ))}
               </div>

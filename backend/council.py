@@ -104,23 +104,23 @@ from .memory import CouncilMemorySystem
 # Import router modules
 try:
     from . import openrouter
-    from . import litellm_router
+    from . import direct_router
 except ImportError:
     # This might happen if dependencies are missing, but we expect them to be there
     logger.warning("Failed to import router modules. Ensure dependencies are installed.")
     openrouter = None
-    litellm_router = None
+    direct_router = None
 
 def get_router_functions(router_type: str):
     """Get the appropriate query functions based on router type."""
-    if router_type == "litellm":
-        return litellm_router
+    if router_type == "direct" or router_type == "litellm":
+        return direct_router
     elif router_type == "openrouter":
         return openrouter
     else:
         # Fallback to configured default
-        if ROUTER_TYPE == "litellm":
-            return litellm_router
+        if ROUTER_TYPE == "direct" or ROUTER_TYPE == "litellm":
+            return direct_router
         return openrouter
 
 
