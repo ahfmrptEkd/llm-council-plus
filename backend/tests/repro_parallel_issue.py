@@ -26,8 +26,8 @@ async def test_parallel_calls(apply_fix: bool = False, iterations: int = 5):
     total_success = 0
     total_calls = 0
     
-    # Models to test (Increased to 5 concurrent calls to match council max size)
-    models = ["gpt-5", "gpt-5.1", "gpt-5", "gpt-5.1", "gpt-5"]
+    # Mixed models to simulate the failing condition (Azure + Gemini)
+    models = ["gpt-5", "gemini-1.5-flash", "gpt-5.1", "gemini-1.5-pro", "gpt-5"]
     prompt = "Hello, are you working? Respond with 'YES' and your model name."
     
     for i in range(iterations):
@@ -59,12 +59,17 @@ async def test_parallel_calls(apply_fix: bool = False, iterations: int = 5):
     return total_success == total_calls
 
 if __name__ == "__main__":
-    # Run multiple iterations
+    # Short controlled test for comparison
     async def main():
         print("\n" + "="*50)
-        print("TEST: STRESS TESTING PARALLEL CALLS (WITH FIX APPLIED)")
-        # We've already applied the fix in shared/llm/llm_manager.py, 
-        # but let's be explicit here.
-        await test_parallel_calls(apply_fix=True, iterations=5)
+        print("TEST 1: 2 ITERATIONS WITHOUT FIX")
+        # Ensure fix is OFF
+        litellm.cache = "local" # Reset to default
+        litellm.drop_params = False
+        await test_parallel_calls(apply_fix=False, iterations=2)
+        
+        print("\n" + "="*50)
+        print("TEST 2: 2 ITERATIONS WITH FIX")
+        await test_parallel_calls(apply_fix=True, iterations=2)
     
     asyncio.run(main())
