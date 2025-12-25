@@ -125,6 +125,14 @@ function App() {
   useEffect(() => {
     if (isAuthenticated) {
       loadConversations();
+    } else {
+      // Clear data on logout so it's not visible on next login
+      setConversations([]);
+      setCurrentConversationId(null);
+      setCurrentConversation(null);
+      // Clear all streaming state
+      streamingStateRef.current.clear();
+      activeStreamingConvIdRef.current = null;
     }
   }, [isAuthenticated]);
 
