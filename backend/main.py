@@ -1027,7 +1027,7 @@ async def send_message_stream(
 
             # Start title generation in parallel (don't await yet)
             if is_first_message:
-                title_task = asyncio.create_task(generate_conversation_title(request.content))
+                title_task = asyncio.create_task(generate_conversation_title(request.content, model=conv_chairman))
 
             # Stage 1: Collect responses with streaming - send each model's response as it completes
             # Pass images for multimodal queries

@@ -1115,12 +1115,13 @@ def calculate_aggregate_rankings(
     return aggregate
 
 
-async def generate_conversation_title(user_query: str) -> str:
+async def generate_conversation_title(user_query: str, model: str = None) -> str:
     """
     Generate a short title for a conversation based on the first user message.
 
     Args:
         user_query: The first user message
+        model: Optional model ID to use (defaults to CHAIRMAN_MODEL)
 
     Returns:
         A short title (3-5 words)
@@ -1134,9 +1135,10 @@ Title:"""
 
     messages = [{"role": "user", "content": title_prompt}]
 
-    # Use the chairman model for title generation
+    # Use the provided model or the default chairman model for title generation
+    target_model = model if model else CHAIRMAN_MODEL
     # Increased timeout for Ollama models which may need time to load
-    response = await query_model(CHAIRMAN_MODEL, messages, timeout=TITLE_GENERATION_TIMEOUT)
+    response = await query_model(target_model, messages, timeout=TITLE_GENERATION_TIMEOUT)
 
     if response is None:
         # Fallback to a generic title
