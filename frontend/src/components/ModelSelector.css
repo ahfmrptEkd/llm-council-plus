@@ -61,7 +61,11 @@
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent-blue) 0%,
+    var(--accent-purple) 100%
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -547,7 +551,7 @@
   border-radius: 4px;
   background: var(--bg-secondary);
   color: var(--text-secondary);
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
 }
 
 .spec.context {
@@ -580,7 +584,11 @@
   position: absolute;
   bottom: 8px;
   right: 50px;
-  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent-blue) 0%,
+    var(--accent-purple) 100%
+  );
   color: white;
   font-size: 9px;
   font-weight: 700;
@@ -677,7 +685,11 @@
   align-items: center;
   gap: 16px;
   padding: 16px 20px;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 170, 0, 0.05) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 215, 0, 0.1) 0%,
+    rgba(255, 170, 0, 0.05) 100%
+  );
   border: 2px solid #ffd700;
   border-radius: 12px;
   min-width: 300px;
@@ -728,7 +740,7 @@
   background: var(--bg-secondary);
   border-radius: 4px;
   color: var(--text-secondary);
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
 }
 
 .chairman-scroll-btn,
@@ -874,7 +886,11 @@
 
 .confirm-button {
   padding: 12px 24px;
-  background: linear-gradient(135deg, var(--accent-blue-dim) 0%, var(--accent-blue) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent-blue-dim) 0%,
+    var(--accent-blue) 100%
+  );
   border: none;
   border-radius: 8px;
   color: white;
@@ -940,4 +956,35 @@
   .models-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Router Toggle */
+.router-toggle-group {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 4px;
+  margin-right: 12px;
+}
+
+.router-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.router-toggle-btn.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.router-toggle-btn:hover:not(.active) {
+  color: #ccc;
 }

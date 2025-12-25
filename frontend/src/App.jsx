@@ -171,9 +171,9 @@ function App() {
     setShowModelSelector(true);
   };
 
-  const handleModelSelectionConfirm = async ({ models, chairman }) => {
+  const handleModelSelectionConfirm = async ({ models, chairman, router }) => {
     try {
-      const newConv = await api.createConversation({ models, chairman, username });
+      const newConv = await api.createConversation({ models, chairman, username, router });
       setConversations([
         {
           id: newConv.id,

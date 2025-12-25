@@ -179,6 +179,9 @@ export const api = {
     if (options.username) {
       body.username = options.username;
     }
+    if (options.router) {
+      body.router = options.router;
+    }
 
     const response = await authFetch(`${API_BASE}/api/conversations`, {
       method: 'POST',
@@ -455,10 +458,15 @@ export const api = {
 
   /**
    * Get available models from OpenRouter or Ollama. (Public endpoint)
+   * @param {string} router - Optional router type override
    * @returns {Promise<{models: Array, router_type: string, count: number}>}
    */
-  async getModels() {
-    const response = await fetch(`${API_BASE}/api/models`);
+  async getModels(router = null) {
+    let url = `${API_BASE}/api/models`;
+    if (router) {
+      url += `?router=${encodeURIComponent(router)}`;
+    }
+    const response = await fetch(url);
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Failed to fetch models');

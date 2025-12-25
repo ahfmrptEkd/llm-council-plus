@@ -52,6 +52,10 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
   const [chairmanModel, setChairmanModel] = useState('');
   const [activePreset, setActivePreset] = useState(null);
   const [maxModels, setMaxModels] = useState(DEFAULT_MAX_MODELS);
+   
+  // Router state
+  const [availableRouters, setAvailableRouters] = useState([]);
+  const [activeRouter, setActiveRouter] = useState(null);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,7 +86,22 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
     setIsLoadingModels(true);
     setLoadError(null);
     try {
-      const data = await api.getModels();
+      // First check available routers if not already loaded
+      let currentRouter = activeRouter;
+      if (availableRouters.length === 0) {
+        const setup = await api.getSetupStatus();
+        if (setup.available_routers && setup.available_routers.length > 0) {
+          setAvailableRouters(setup.available_routers);
+          // If no active router, default to current backend default or first available
+          if (!currentRouter) {
+            currentRouter = setup.router_type || setup.available_routers[0];
+            setActiveRouter(currentRouter);
+          }
+        }
+      }
+
+      // Fetch models with optional router param
+      const data = await api.getModels(currentRouter);
       setAllModels(data.models || []);
       // Get max_models from backend config if provided
       if (data.max_models) {
@@ -95,6 +114,15 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
       setIsLoadingModels(false);
     }
   };
+  
+  // Reload models when active router changes (but not on initial mount loop)
+  useEffect(() => {
+    if (activeRouter && isOpen && !isLoadingModels) {
+        // Simple dedupe: if we just loaded models for this router, don't reload?
+        // But api.getModels caches.
+        loadModels();
+    }
+  }, [activeRouter]);
 
   const loadLastUsedSelection = () => {
     try {
@@ -324,6 +352,7 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
       onConfirm({
         models: selectedModels,
         chairman: chairmanModel,
+        router: activeRouter
       });
       onClose();
     }
@@ -455,6 +484,21 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+
+            {/* Router Switcher */}
+            {availableRouters.length > 1 && (
+              <div className="router-toggle-group">
+                {availableRouters.map(r => (
+                  <button
+                    key={r}
+                    className={`router-toggle-btn ${activeRouter === r ? 'active' : ''}`}
+                    onClick={() => setActiveRouter(r)}
+                  >
+                    {r === 'litellm' ? 'Azure/Direct' : 'OpenRouter'}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <select
               className="filter-select"
