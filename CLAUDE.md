@@ -267,9 +267,6 @@ volumes:
 
 *Google Gemini (choose one):*
 - `GEMINI_AI_API_KEY` - Google AI Studio direct API key
-- OR use Vertex AI:
-  - `VERTEX_PROJECT_ID` - GCP project ID
-  - `GOOGLE_CLOUD_LOCATION` - GCP region (default: `us-central1`)
 
 *xAI Grok:*
 - `GROK_API_KEY` - Grok API key

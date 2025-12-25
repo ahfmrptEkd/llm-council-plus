@@ -120,10 +120,6 @@ AZURE_PROJECT_EXTRA_ENDPOINT=https://your-extra-resource.openai.azure.com/
 # Option 1: Google AI Studio (Direct API)
 GEMINI_AI_API_KEY=your-gemini-api-key
 
-# Option 2: Vertex AI (GCP)
-VERTEX_PROJECT_ID=your-gcp-project-id
-GOOGLE_CLOUD_LOCATION=us-central1
-
 # Grok (xAI) - Optional
 GROK_API_KEY=your-grok-api-key
 
