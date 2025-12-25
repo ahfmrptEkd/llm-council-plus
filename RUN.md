@@ -62,31 +62,28 @@ OPENROUTER_API_KEY=sk-or-v1-your-key-here
 
 ### 4. Run the Application
 
-**Option A: Two Terminals (Recommended)**
+**Option A: Development Mode (FastAPI + React)**
 
-Terminal 1 - Backend:
+This is the standard mode for development with hot-reloading. You can run them in two terminals or use background processes.
 
 ```bash
+# Terminal 1: Start backend
 uv run python -m backend.main
-```
 
-Terminal 2 - Frontend:
-
-```bash
+# Terminal 2: Start frontend
 cd frontend
 npm run dev
 ```
 
-**Option B: Background Processes**
+**Option B: Gradio & MCP Mode (Standalone)**
+
+This mode runs a unified Gradio interface and exposes the system as an MCP server.
 
 ```bash
-# Start backend in background
-uv run python -m backend.main &
-
-# Start frontend
-cd frontend
-npm run dev
+uv run python app.py
 ```
+
+_App will be available at http://localhost:7860 by default._
 
 ### 5. Open Application
 
@@ -105,19 +102,16 @@ ROUTER_TYPE=openrouter
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
 ```
 
-**Ollama (Local Models):**
+**Direct (Multi-Provider):**
+
+The `direct` router (formerly `litellm`) allows connecting directly to various cloud providers and local Ollama instances.
 
 ```bash
 ROUTER_TYPE=direct
 # Or legacy: ROUTER_TYPE=litellm
+
+# Ollama (Local Models)
 OLLAMA_HOST=localhost:11434
-```
-
-**Direct (Multi-Provider - formerly LiteLLM):**
-
-```bash
-ROUTER_TYPE=direct
-# Or legacy: ROUTER_TYPE=litellm
 
 # Azure OpenAI (GPT, DeepSeek, Llama)
 AZURE_PROJECT_ENDPOINT=https://your-resource.openai.azure.com/
@@ -125,23 +119,12 @@ AZURE_API_KEY=your-azure-api-key
 
 # Azure Anthropic (Claude) - Optional
 AZURE_PROJECT_ANTHROPIC_ENDPOINT=https://your-resource.anthropic.azure.com/
-# Uses same AZURE_API_KEY
 
-# Azure Extra Endpoint (Phi models) - Optional
-AZURE_PROJECT_EXTRA_ENDPOINT=https://your-extra-resource.openai.azure.com/
-# Uses same AZURE_API_KEY
-
-# Google Gemini - Choose one:
-# Option 1: Google AI Studio (Direct API)
+# Google Gemini - Choice of Google AI Studio or Vertex AI
 GEMINI_AI_API_KEY=your-gemini-api-key
 
 # Grok (xAI) - Optional
 GROK_API_KEY=your-grok-api-key
-
-# Langfuse Monitoring (Optional)
-LANGFUSE_PUBLIC_KEY=your-langfuse-public-key
-LANGFUSE_SECRET_KEY=your-langfuse-secret-key
-LANGFUSE_HOST=http://localhost:3000  # Optional, defaults to localhost
 ```
 
 **Model Aliases (Direct/LiteLLM):**
@@ -151,9 +134,9 @@ Direct router uses model aliases defined in `shared/llm/config/model_deployments
 - `claude-sonnet-4.5`, `claude-opus-4.5` (Azure Anthropic)
 - `deepseek-r1`, `deepseek-v3` (Azure DeepSeek)
 - `llama-3.3-70b` (Azure Llama)
-- `phi-4`, `phi-4-reasoning`, `phi-4-multimodal` (Azure Phi)
-- `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-3-pro`, `gemini-3-flash` (Google Gemini)
-- `grok-4`, `grok-4.1-fast` (xAI Grok)
+- `phi-4` (Azure Phi)
+- `gemini-2.5-pro`, `gemini-3-pro`, `gemini-3-flash` (Google Gemini)
+- `grok-4` (xAI Grok)
 
 **Default Models per Router:**
 

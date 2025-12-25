@@ -1,3 +1,14 @@
+---
+title: LLM Council Plus
+emoji: 🏛️
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: 5.9.1
+app_file: app.py
+pinned: false
+---
+
 # LLM Council Plus
 
 ![llmcouncil](header.jpg)
@@ -50,6 +61,14 @@ The Setup Wizard lets you:
 - Enter API keys
 - Optionally enable authentication
 - Optionally configure web search (Tavily or Exa)
+
+**Alternative: Gradio & MCP Mode (Standalone)**
+
+```bash
+uv run python app.py
+# Open http://localhost:7860
+# This mode includes an MCP server for integration with other AI tools
+```
 
 **Alternative: Manual configuration**
 
@@ -115,20 +134,23 @@ Backend API is available at http://localhost:8001
 
 ### Development Mode (without Docker)
 
-Terminal 1 (Backend):
+**Option A: Split Mode (FastAPI + React)**
 
 ```bash
+# Backend:
 uv run python -m backend.main
+
+# Frontend:
+cd frontend && npm run dev
 ```
 
-Terminal 2 (Frontend):
+**Option B: Unified Mode (Gradio + MCP)**
 
 ```bash
-cd frontend
-npm run dev
+uv run python app.py
 ```
 
-Then open http://localhost:5173 in your browser.
+_Access at http://localhost:7860._
 
 ## Common Configuration
 
