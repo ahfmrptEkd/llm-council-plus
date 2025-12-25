@@ -325,6 +325,12 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
     setSelectedModels((prev) => prev.filter((id) => id !== modelId));
   };
 
+  const clearSelection = () => {
+    setActivePreset(null);
+    setSelectedModels([]);
+    setChairmanModel('');
+  };
+
   const handleChairmanChange = (modelId, event) => {
     if (event) {
       event.stopPropagation();
@@ -427,6 +433,15 @@ export default function ModelSelector({ isOpen, onClose, onConfirm }) {
                 ({selectedModels.length}/{maxModels})
                 {isMaxReached && <span className="max-reached"> - Max reached</span>}
               </span>
+              {selectedModels.length > 0 && (
+                <button 
+                  className="clear-all-btn" 
+                  onClick={clearSelection}
+                  style={{ marginLeft: '1rem', fontSize: '0.8rem', color: '#ff6b6b', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                  Clear All
+                </button>
+              )}
             </h3>
             <div className="selected-models-list">
               {selectedModelObjects.map((model, index) => (
