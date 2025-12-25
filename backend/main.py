@@ -62,8 +62,19 @@ async def get_current_user(
     Used as a dependency for protected endpoints.
     When AUTH_ENABLED=false, returns 'guest' without validation.
     """
-    # Skip authentication when disabled
-    if not AUTH_ENABLED:
+    # Even if auth is disabled, try to validate token to support user separation (Feature: Account Login vs Guest)
+    if not AUTH_ENABLED and not credentials:
+        return "guest"
+
+    if not credentials:
+        # If auth is enabled, strictly require credentials
+        if AUTH_ENABLED:
+            raise HTTPException(
+                status_code=401,
+                detail="Missing authorization header",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+        # If auth disabled and no credentials, treat as guest
         return "guest"
 
     if not credentials:
@@ -715,7 +726,7 @@ async def get_auth_status():
 @app.get("/api/conversations", response_model=List[ConversationMetadata])
 async def list_conversations(current_user: str = Depends(get_current_user)):
     """List all conversations (metadata only). Requires authentication."""
-    return storage.list_conversations()
+    return storage.list_conversations(username=current_user)
 
 
 @app.post("/api/conversations", response_model=Conversation)

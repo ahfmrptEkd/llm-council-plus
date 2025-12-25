@@ -147,8 +147,12 @@ def create_token(username: str) -> tuple[str, int]:
     Raises:
         ValueError: If JWT_SECRET is not configured
     """
-    if not JWT_SECRET:
-        raise ValueError("JWT_SECRET environment variable must be set")
+    secret_to_use = JWT_SECRET
+    if not secret_to_use:
+        if not AUTH_ENABLED:
+             secret_to_use = "dev-fallback-secret-key-change-in-prod"
+        else:
+            raise ValueError("JWT_SECRET environment variable must be set")
 
     now = datetime.now(timezone.utc)
     expires = now + timedelta(days=TOKEN_EXPIRE_DAYS)
@@ -159,7 +163,7 @@ def create_token(username: str) -> tuple[str, int]:
         "exp": expires,
     }
 
-    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, secret_to_use, algorithm=JWT_ALGORITHM)
     expires_at_ms = int(expires.timestamp() * 1000)
 
     return token, expires_at_ms
@@ -176,14 +180,31 @@ def validate_token(token: str) -> Optional[str]:
         Username if token is valid, None otherwise
     """
     if not JWT_SECRET:
-        logger.error("JWT_SECRET not configured")
-        return None
+        if not AUTH_ENABLED:
+            # Use fallback secret in dev mode
+            global JWT_SECRET_FALLBACK
+            JWT_SECRET_FALLBACK = "dev-fallback-secret-key-change-in-prod"
+            # We need to pass this to jwt.decode but variable isn't global
+            # Just relying on flow, we'll fix create_token too to ensure it sets it?
+            # Actually easier to set it in module scope or handle it here
+            pass
+        else:
+            logger.error("JWT_SECRET not configured")
+            return None
+            
+    secret_to_use = JWT_SECRET or "dev-fallback-secret-key-change-in-prod"
 
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, secret_to_use, algorithms=[JWT_ALGORITHM])
         username = payload.get("sub")
 
-        if username and username in USERS:
+        if username:
+            # If auth enabled, verify user exists in config
+            if AUTH_ENABLED:
+                if username in USERS:
+                    return username
+                return None
+            # If auth disabled, accept any valid token
             return username
         return None
     except jwt.ExpiredSignatureError:
@@ -205,12 +226,27 @@ def authenticate(username: str, password: str) -> LoginResponse:
     Returns:
         LoginResponse with success status and JWT token if successful
     """
+    # If auth is disabled, effectively allow any user (Development/Demo Mode)
     if not AUTH_ENABLED:
-        logger.warning("Authentication is disabled (AUTH_ENABLED=false)")
-        return LoginResponse(
-            success=False,
-            error="Authentication is disabled"
-        )
+        logger.info(f"Auth disabled: allowing login for '{username}' without password check")
+        # Use fallback secret if not set
+        global JWT_SECRET
+        if not JWT_SECRET:
+            JWT_SECRET = "dev-fallback-secret-key-change-in-prod"
+            
+        try:
+            token, expires_at = create_token(username)
+            return LoginResponse(
+                success=True,
+                user={"username": username},
+                token=token,
+                expiresAt=expires_at
+            )
+        except Exception as e:
+            return LoginResponse(
+                success=False,
+                error=f"Token generation failed: {str(e)}"
+            )
 
     if not username or not password:
         return LoginResponse(
@@ -300,12 +336,14 @@ def validate_auth_token(token: str) -> ValidateResponse:
         ValidateResponse with success status and user info if valid
     """
     if not AUTH_ENABLED:
-        return ValidateResponse(
-            success=False,
-            error="Authentication is disabled"
-        )
-
-    if not token:
+        # If auth is disabled, allow token validation to proceed (for dev/guest mode transparency)
+        # But if token is missing/invalid, we rely on validate_token to handle or return None.
+        # Ideally, if no token info needed, we could just return success.
+        # However, we want to extract the username if possible.
+        if not token:
+             return ValidateResponse(success=False, error="Token required even in guest mode")
+        # Proceed to validate_token which now handles fallback secret
+    elif not token:
         return ValidateResponse(
             success=False,
             error="Token is required"

@@ -182,7 +182,7 @@ def _json_save_conversation(conversation: Dict[str, Any]):
             json.dump(conversation, f, indent=2)
 
 
-def _json_list_conversations() -> List[Dict[str, Any]]:
+def _json_list_conversations(username: Optional[str] = None) -> List[Dict[str, Any]]:
     """List all conversations from JSON files with shared locks."""
     ensure_data_dir()
 
@@ -194,6 +194,16 @@ def _json_list_conversations() -> List[Dict[str, Any]]:
                 with open(path, 'r') as f:
                     with file_lock(f, exclusive=False):
                         data = json.load(f)
+                        
+                        # Filter by username if specified
+                        if username and data.get("username") != username:
+                            continue
+                            
+                        # If username is NOT specified (e.g. admin or unfiltered), maybe show all? 
+                        # But for separation, if username is 'guest', we definitely only want guest.
+                        # If username is None, we might return all (admin view) or none?
+                        # Assuming None means "all" for now, or the caller always passes user.
+                            
                         conversations.append({
                             "id": data["id"],
                             "created_at": data["created_at"],
@@ -295,11 +305,16 @@ def _db_save_conversation(conversation: Dict[str, Any]):
         db.close()
 
 
-def _db_list_conversations() -> List[Dict[str, Any]]:
+def _db_list_conversations(username: Optional[str] = None) -> List[Dict[str, Any]]:
     """List all conversations from database."""
     db = SessionLocal()
     try:
-        conversations = db.query(ConversationModel).order_by(
+        query = db.query(ConversationModel)
+        
+        if username:
+            query = query.filter(ConversationModel.username == username)
+            
+        conversations = query.order_by(
             ConversationModel.created_at.desc()
         ).all()
 
@@ -400,16 +415,19 @@ def save_conversation(conversation: Dict[str, Any]):
         _json_save_conversation(conversation)
 
 
-def list_conversations() -> List[Dict[str, Any]]:
+def list_conversations(username: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     List all conversations (metadata only).
+    
+    Args:
+        username: Optional username to filter by
 
     Returns:
         List of conversation metadata dicts
     """
     if is_using_database():
-        return _db_list_conversations()
-    return _json_list_conversations()
+        return _db_list_conversations(username)
+    return _json_list_conversations(username)
 
 
 def add_user_message(conversation_id: str, content: str):

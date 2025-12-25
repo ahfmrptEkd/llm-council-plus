@@ -49,11 +49,13 @@ function handleUnauthorized() {
   // Clear auth state in localStorage
   try {
     localStorage.removeItem('llm-council-auth');
+    localStorage.setItem('llm-council-auth', JSON.stringify({ state: { isAuthenticated: false, token: null } }));
   } catch (e) {
     console.error('Failed to clear auth state:', e);
   }
-  // Reload the page to trigger login screen
-  window.location.reload();
+  
+  // Dispatch event so App can handle it (show login screen) without reloading
+  window.dispatchEvent(new CustomEvent('unauthorized'));
 }
 
 /**

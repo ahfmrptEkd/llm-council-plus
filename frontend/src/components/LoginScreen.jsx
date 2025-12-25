@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../api';
 import './LoginScreen.css';
 
-export default function LoginScreen({ onLogin }) {
+export default function LoginScreen({ onLogin, authEnabled }) {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [password, setPassword] = useState('');
@@ -40,7 +40,10 @@ export default function LoginScreen({ onLogin }) {
       return;
     }
 
-    if (!password) {
+    if (!authEnabled) {
+       // In no-auth mode, password is optional (backend ignores it)
+       // But we need to ensure username is provided
+    } else if (!password) {
       setError('Please enter password');
       return;
     }
@@ -132,10 +135,10 @@ export default function LoginScreen({ onLogin }) {
             )}
           </div>
 
-          {/* Password Input */}
+          {/* Password Input (Optional if auth disabled) */}
           <div className="form-group">
             <label htmlFor="password" className="form-label">
-              Password
+              Password {authEnabled ? '' : '(Optional)'}
             </label>
             <input
               id="password"
@@ -158,7 +161,7 @@ export default function LoginScreen({ onLogin }) {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isLoading || !selectedUser || !password}
+            disabled={isLoading || !selectedUser || (authEnabled && !password)}
             className="submit-button"
           >
             {isLoading ? (
@@ -174,6 +177,23 @@ export default function LoginScreen({ onLogin }) {
             )}
           </button>
         </form>
+
+        {/* Guest Login Button (Only if auth disabled) */}
+        {!authEnabled && (
+          <div className="guest-login-section">
+            <div className="divider">
+              <span>OR</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onLogin('guest', 'no-auth-mode', Date.now() + 365 * 24 * 60 * 60 * 1000)}
+              className="guest-button"
+              disabled={isLoading}
+            >
+              Continue as Guest
+            </button>
+          </div>
+        )}
 
         {/* Footer */}
         <p className="login-footer">

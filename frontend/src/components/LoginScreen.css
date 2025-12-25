@@ -222,3 +222,55 @@
   opacity: 0.7;
   font-family: monospace;
 }
+
+/* Guest Login Section */
+.guest-login-section {
+  margin-top: 24px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.divider span {
+  padding: 0 12px;
+}
+
+.guest-button {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  border: 2px solid var(--border-primary);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.guest-button:hover:not(:disabled) {
+  border-color: var(--text-tertiary);
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.loading-users {
+  color: var(--text-tertiary);
+  font-size: 14px;
+  font-style: italic;
+  display: block;
+  margin-top: 8px;
+}

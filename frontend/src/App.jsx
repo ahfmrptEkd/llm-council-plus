@@ -64,8 +64,17 @@ function App() {
   };
 
   // Auth state
-  const { isSessionValid, login, username } = useAuthStore();
+  const { isSessionValid, login, logout, username } = useAuthStore();
   const isAuthenticated = isSessionValid();
+
+  // Listen for unauthorized events from api.js to trigger logout without reload
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      logout();
+    };
+    window.addEventListener('unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('unauthorized', handleUnauthorized);
+  }, [logout]);
 
   // Check setup status first - if API key is missing, show wizard
   useEffect(() => {
@@ -92,8 +101,8 @@ function App() {
         setAuthEnabled(auth_enabled);
         // If auth is disabled, auto-login as guest
         if (!auth_enabled && !isAuthenticated) {
-          // Set guest session (no real token needed, backend will accept without auth)
-          login('guest', 'no-auth-mode', Date.now() + 365 * 24 * 60 * 60 * 1000);
+          // No auto-login! User must choose Guest or Account.
+          // LoginScreen will handle the choice.
         }
         setAuthChecked(true);
       })
@@ -101,10 +110,6 @@ function App() {
         console.error('Failed to check auth status:', err);
         // Default to auth disabled if check fails (fail open for development)
         setAuthEnabled(false);
-        if (!isAuthenticated) {
-          // Auto-login as guest when auth check fails
-          login('guest', 'no-auth-mode', Date.now() + 365 * 24 * 60 * 60 * 1000);
-        }
         setAuthChecked(true);
       });
   }, [setupChecked, setupRequired]);
@@ -552,9 +557,9 @@ function App() {
     );
   }
 
-  // Show login screen if auth is enabled and not authenticated
-  if (authEnabled && !isAuthenticated) {
-    return <LoginScreen onLogin={login} />;
+  // Always show login screen if not authenticated (even if auth is disabled, to allow Guest/Account choice)
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={login} authEnabled={authEnabled} />;
   }
 
   return (
