@@ -21,7 +21,7 @@ COPY VERSION /app/VERSION
 # Copy application code into backend package
 COPY backend/ /app/backend/
 
-# Copy shared module (required by litellm_router)
+# Copy shared module (required by direct_router)
 COPY shared/ /app/shared/
 
 # Create data directory with correct permissions
