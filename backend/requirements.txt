@@ -33,7 +33,6 @@ pymysql>=1.1.0
 langchain>=0.1.0
 langchain-core>=0.1.0
 langchain-community>=0.0.20
-langchain-litellm==0.3.3
 wikipedia>=1.4.0
 arxiv>=2.0.0
 yfinance>=0.2.30
@@ -41,8 +40,10 @@ duckduckgo-search>=4.0.0
 tavily-python>=0.3.0
 exa-py>=1.0.0
 
-# LiteLLM for multi-provider LLM support
-litellm>=1.0.0
+# LLM Providers (Direct Clients)
+openai>=1.59.0
+anthropic>=0.45.0
+google-generativeai>=0.8.0
 pyyaml>=6.0.0
 
 # TOON token optimization

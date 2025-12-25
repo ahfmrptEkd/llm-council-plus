@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 import yaml
-from litellm import completion_cost, model_cost
+
 
 
 def _load_model_pricing() -> Dict[str, Dict[str, float]]:
@@ -122,7 +122,7 @@ class CostLogger:
         return cost_info
 
     def calculate_cost(self, model: str, input_tokens: int, output_tokens: int) -> Dict:
-        """Calculate cost using LiteLLM first, then fallback to local pricing.
+        """Calculate cost using local pricing config.
 
         Args:
             model: Model name
@@ -137,43 +137,20 @@ class CostLogger:
         input_cost = 0.0
         output_cost = 0.0
 
-        try:
-            mock_response = {"usage": {"prompt_tokens": input_tokens, "completion_tokens": output_tokens}}
-            total_cost = completion_cost(model=model, completion_response=mock_response)
+        # Fallback to Local Pricing
+        if model in self.PRICING:
+            pricing = self.PRICING[model]  # returns {input: x, output: y} per 1k
 
-            # If LiteLLM found a price, use it
-            if total_cost > 0:
-                if model in model_cost:
-                    pricing = model_cost[model]
-                    input_price = pricing.get("input_cost_per_token", 0)
-                    output_price = pricing.get("output_cost_per_token", 0)
-                    input_cost = input_tokens * input_price
-                    output_cost = output_tokens * output_price
-                else:
-                    input_cost = total_cost * 0.5
-                    output_cost = total_cost * 0.5
+            # YAML prices are per 1000 tokens
+            input_price_per_token = pricing.get("input", 0) / 1000.0
+            output_price_per_token = pricing.get("output", 0) / 1000.0
 
-        except Exception:
-            # LiteLLM failed (e.g. unknown provider), ignore and try fallback
-            pass
+            input_cost = input_tokens * input_price_per_token
+            output_cost = output_tokens * output_price_per_token
+            total_cost = input_cost + output_cost
+        else:
+            self._log_missing_price(model, "Cost calculated as 0 (Not in Local Config)")
 
-        # 2. Fallback to Local Pricing (Good for Custom Azure/Aliases)
-        if total_cost == 0 and (input_tokens > 0 or output_tokens > 0):
-            if model in self.PRICING:
-                pricing = self.PRICING[model]  # returns {input: x, output: y} per 1k
-
-                # YAML prices are per 1000 tokens
-                input_price_per_token = pricing.get("input", 0) / 1000.0
-                output_price_per_token = pricing.get("output", 0) / 1000.0
-
-                input_cost = input_tokens * input_price_per_token
-                output_cost = output_tokens * output_price_per_token
-                total_cost = input_cost + output_cost
-            else:
-                self._log_missing_price(model, "Cost calculated as 0 (Not in LiteLLM or Local Config)")
-
-        if total_cost == 0 and (input_tokens > 0 or output_tokens > 0):
-            self._log_missing_price(model, "Cost calculated as 0 (Not in LiteLLM or Local Config)")
 
         return {"input_cost": input_cost, "output_cost": output_cost, "total_cost": total_cost, "pricing": pricing}
 

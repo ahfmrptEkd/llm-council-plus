@@ -1,4 +1,4 @@
-"""LiteLLM router for multi-provider LLM support via shared/llm module.
+"""LiteLLM router (legacy name) for multi-provider LLM support via shared/llm module.
 
 Supports Azure OpenAI, Azure Anthropic, Google Gemini, and Grok (xAI)
 through a unified interface compatible with openrouter.py.
@@ -17,7 +17,6 @@ if str(_project_root) not in sys.path:
 
 # Import shared module as a package
 from shared.llm.llm_manager import LLMManager
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from .config import DEFAULT_TIMEOUT
 
@@ -76,37 +75,6 @@ def build_message_content(
     return content
 
 
-def _convert_messages_to_langchain(messages: List[Dict[str, Any]]) -> List:
-    """Convert API message format to LangChain message format.
-
-    Args:
-        messages: List of dicts with 'role' and 'content' keys
-
-    Returns:
-        List of LangChain message objects
-    """
-    langchain_messages = []
-    for msg in messages:
-        role = msg.get("role", "user")
-        content = msg.get("content", "")
-
-        if role == "system":
-            langchain_messages.append(SystemMessage(content=content))
-        elif role == "assistant":
-            langchain_messages.append(AIMessage(content=content))
-        else:  # user or default
-            # Handle multimodal content (list of content parts)
-            if isinstance(content, list):
-                # LangChain HumanMessage supports list of content parts
-                # Format: [{"type": "text", "text": "..."}, {"type": "image_url", "image_url": {"url": "..."}}]
-                langchain_messages.append(HumanMessage(content=content))
-            else:
-                # Simple text content
-                langchain_messages.append(HumanMessage(content=content))
-
-    return langchain_messages
-
-
 async def query_model(
     model: str,
     messages: List[Dict[str, Any]],
@@ -115,13 +83,11 @@ async def query_model(
     retry_on_rate_limit: bool = True
 ) -> Optional[Dict[str, Any]]:
     """
-    Query a single model via LiteLLM with retry on rate limits.
+    Query a single model via LLMManager with retry on rate limits.
 
     Args:
         model: Model alias (e.g., "gpt-5-mini", "claude-sonnet-4.5", "gemini-2.5-pro")
         messages: List of message dicts with 'role' and 'content'.
-                  Content can be a string (text only) or an array of content parts
-                  for multimodal messages (see build_message_content).
         timeout: Request timeout in seconds (defaults to DEFAULT_TIMEOUT from config)
         stage: Optional stage identifier for debugging (e.g., "STAGE1", "STAGE2", "STAGE3")
         retry_on_rate_limit: If True, retry on rate limit errors with exponential backoff
@@ -137,46 +103,17 @@ async def query_model(
 
     manager = _get_llm_manager()
 
-    # Convert messages to LangChain format
-    try:
-        langchain_messages = _convert_messages_to_langchain(messages)
-    except Exception as e:
-        logger.error("Error converting messages: %s", e)
-        return {
-            'error': True,
-            'error_type': 'invalid_input',
-            'error_message': f'Invalid message format: {str(e)}'
-        }
-
-    # Get LLM instance
-    try:
-        llm = manager.get_llm(model)
-    except ValueError as e:
-        logger.error("Configuration error for model %s: %s", model, e)
-        return {
-            'error': True,
-            'error_type': 'config',
-            'error_message': str(e)
-        }
-    except Exception as e:
-        logger.error("Error getting LLM instance for model %s: %s", model, e)
-        return {
-            'error': True,
-            'error_type': 'unknown',
-            'error_message': f'Failed to initialize model: {str(e)}'
-        }
-
     # Retry loop for rate limits
     retries = 0
     backoff = INITIAL_BACKOFF_SECONDS
 
     while True:
         try:
-            # Invoke with tracking
-            result = await manager.invoke_with_tracking(
-                llm=llm,
-                messages=langchain_messages,
-                model_name=model,
+            # Invoke model directly
+            # Note: We rely on the manager to handle provider-specific logic
+            result = await manager.invoke_model(
+                model_alias=model,
+                messages=messages,
                 metadata={"stage": stage} if stage else None
             )
 
@@ -191,7 +128,7 @@ async def query_model(
 
             return {
                 'content': response_text,
-                'reasoning_details': None  # LiteLLM doesn't provide reasoning details
+                'reasoning_details': None
             }
 
         except Exception as e:
@@ -315,4 +252,3 @@ async def query_models_streaming(
         yield_time = time.time() - start_time
         logger.debug("[PARALLEL] Yielding %s at t=%.2fs", model, yield_time)
         yield (model, response)
-
