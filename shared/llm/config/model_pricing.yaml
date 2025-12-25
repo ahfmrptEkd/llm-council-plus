@@ -9,10 +9,10 @@ gpt:
   gpt-5-mini:
     input: 0.00025
     output: 0.002
-  gpt-5-chat:
+  gpt-5:
     input: 0.00125 # GPT-5계열 대략
     output: 0.01 # GPT-5계열 대략
-  gpt-5.1-chat:
+  gpt-5.1:
     input: 0.00125
     output: 0.01
   gpt-5.1-codex-mini:
