@@ -13,6 +13,7 @@ LLM Council Plus is a 3-stage deliberation system where multiple LLMs collaborat
 ### Deployment
 
 The application runs entirely in Docker containers:
+
 - **Frontend:** Nginx serving React app on port 80 (HTTP by default)
 - **Backend:** FastAPI Python app on port 8001
 
@@ -28,9 +29,10 @@ APP_VERSION="1.2.12" docker compose up -d
 The system supports **three router types** via `ROUTER_TYPE` environment variable:
 
 1. **OpenRouter** (default): Cloud-based access to 200+ models
-2. **LiteLLM**: Multi-provider unified interface (Azure, GCP, xAI, Ollama)
+2. **Direct** (formerly LiteLLM): Multi-provider unified interface (Azure, GCP, xAI, Ollama)
 
-**LiteLLM Benefits:**
+**Direct Router Benefits:**
+
 - Enterprise multi-cloud support (Azure OpenAI, Azure Anthropic, Google Gemini, xAI Grok)
 - Local model support via Ollama integration
 - Unified cost tracking via Langfuse monitoring
@@ -40,22 +42,25 @@ The system supports **three router types** via `ROUTER_TYPE` environment variabl
 ### Backend Structure (`backend/`)
 
 **`config.py`**
+
 - Contains `COUNCIL_MODELS` (list of model identifiers, format varies by router type)
 - Contains `CHAIRMAN_MODEL` (model that synthesizes final answer)
-- `ROUTER_TYPE` selector: "openrouter", "litellm" (supports Ollama)
+- `ROUTER_TYPE` selector: "openrouter", "direct", "litellm" (legacy support)
 - `reload_config()` function for hot reload without container restart
 - Default models per router:
   - OpenRouter: `openai/gpt-5.1`, `google/gemini-3-pro-preview`, `anthropic/claude-sonnet-4.5`, `x-ai/grok-4`
-  - LiteLLM (cloud): `gpt-5.1`, `gemini-2.5-pro`, `claude-sonnet-4.5`, `grok-4`
-  - LiteLLM (Ollama): `ollama/deepseek-r1:latest`, `ollama/llama3.1:latest`, `ollama/qwen3:latest`, `ollama/gemma3:latest`
+  - Direct (cloud): `gpt-5.1`, `gemini-2.5-pro`, `claude-sonnet-4.5`, `grok-4`
+  - Direct (Ollama): `ollama/deepseek-r1:latest`, `ollama/llama3.1:latest`, `ollama/qwen3:latest`, `ollama/gemma3:latest`
 
 **`auth.py`**
+
 - JWT-based authentication system
 - `reload_auth()` function for hot reload of auth configuration
 - Users configured via `AUTH_USERS_JSON` environment variable
 - 60-day token expiry with auto-logout
 
 **`openrouter.py`**
+
 - OpenRouter-specific implementation (used when `ROUTER_TYPE=openrouter`)
 - `query_model()`: Single async model query
 - `query_models_parallel()`: Parallel queries using `asyncio.gather()`
@@ -63,8 +68,9 @@ The system supports **three router types** via `ROUTER_TYPE` environment variabl
 - Uses dynamic config access (`config.OPENROUTER_API_KEY`) for hot reload support
 - Graceful degradation: returns None on failure, continues with successful responses
 
-**`litellm_router.py`** (New)
-- LiteLLM-specific implementation (used when `ROUTER_TYPE=litellm`)
+**`direct_router.py`** (Renamed from `litellm_router.py`)
+
+- Direct-provider implementation (used when `ROUTER_TYPE=direct` or `litellm`)
 - Compatible interface with `openrouter.py` for seamless switching
 - `query_model()`: Single async query with retry logic and rate limit handling
 - `query_models_parallel()`: Parallel queries across multiple providers
@@ -81,7 +87,8 @@ The system supports **three router types** via `ROUTER_TYPE` environment variabl
 - Retry strategy: Max 2 retries with exponential backoff (2s → 30s cap)
 
 **`council.py`** - The Core Logic
-- Router-agnostic implementation (works with OpenRouter, LiteLLM, Ollama)
+
+- Router-agnostic implementation (works with OpenRouter, Direct, Ollama)
 - Dynamically imports correct router module based on `ROUTER_TYPE`
 - `stage1_collect_responses()`: Parallel queries to all council models
 - `stage2_collect_rankings()`:
@@ -95,22 +102,27 @@ The system supports **three router types** via `ROUTER_TYPE` environment variabl
 - `calculate_aggregate_rankings()`: Computes average rank position
 
 **`storage.py`**
+
 - JSON-based conversation storage in `data/conversations/`
-- Each conversation: `{id, created_at, messages[], username}`
+- Each conversation: `{id, created_at, messages[], username, router}`
 - Assistant messages contain: `{role, stage1, stage2, stage3}`
 - Thread-safe with file locking
 
 **`main.py`**
+
 - FastAPI app with CORS enabled
 - SSE streaming endpoints for real-time responses
 - Setup wizard endpoint (`POST /api/setup/config`)
 - Hot reload triggers after setup config save
+- `get_available_models()`: Supports `direct` and `openrouter` types
+  - Prioritizes `ollama` detection for local models
 
 ### Shared Module Structure (`shared/llm/`)
 
-The shared LLM module provides unified multi-provider support for LiteLLM router:
+The shared LLM module provides unified multi-provider support for Direct router:
 
 **`llm_manager.py`** - Core LLM Manager
+
 - `LLMManager` class: Singleton pattern for managing LLM instances
 - `_load_model_deployments()`: Loads model aliases from YAML config
 - `get_llm()`: Factory method returning `ChatLiteLLM` instances with provider-specific config
@@ -121,17 +133,20 @@ The shared LLM module provides unified multi-provider support for LiteLLM router
 - LLM instance caching for performance
 
 **`cost_logger.py`**
+
 - Tracks token usage and costs per model
 - Uses pricing from `config/model_pricing.yaml`
 - Provides session summaries and detailed cost breakdowns
 
 **`config/model_deployments.yaml`**
+
 - Maps user-friendly model aliases to provider-specific deployment names
 - Example: `gpt-5-mini` → `gpt-5-mini-prod` (Azure deployment name)
 - Categories: GPT, Claude, DeepSeek, Llama, Phi, Gemini, Grok, Ollama, Embeddings
 - Supports 20+ model aliases across 5+ providers
 
 **`config/model_pricing.yaml`**
+
 - Defines input/output token costs per 1K tokens (USD)
 - Used by `CostLogger` for accurate cost tracking
 - Ollama models: Free (0.0000 cost)
@@ -140,28 +155,35 @@ The shared LLM module provides unified multi-provider support for LiteLLM router
 ### Frontend Structure (`frontend/src/`)
 
 **`App.jsx`**
+
 - Main orchestration: manages conversations list and current conversation
 - Shows SetupWizard if not configured
-- Shows LoginScreen if auth enabled and not authenticated
+- Shows LoginScreen if auth enabled and not authenticated (or guest mode)
 - Handles message sending with SSE streaming
+- Clears sensitive state (conversations, streaming) on logout
 
 **`components/SetupWizard.jsx`**
+
 - First-time configuration UI
-- Configures: LLM provider (OpenRouter/Ollama), API keys, Tavily, Authentication
+- Configures: LLM provider (OpenRouter/Direct), API keys, Tavily, Authentication
 - Saves to `.env` file and triggers hot reload
 
 **`components/LoginScreen.jsx`**
+
 - JWT-based authentication
 - User selection or manual username input
+- "Continue as Guest" support
 - SVG logo (council nodes design)
 
 **`components/Sidebar.jsx`**
+
 - Conversation list with user filter
 - 3-dot menu for edit/delete
 - Inline title editing
 - SVG logo with "LLM Council Plus" text
 
 **`components/ChatInterface.jsx`**
+
 - Multiline textarea (3 rows, resizable)
 - Enter to send, Shift+Enter for new line
 - File upload support (PDF, TXT, MD, images)
@@ -169,12 +191,21 @@ The shared LLM module provides unified multi-provider support for LiteLLM router
 - Google Drive upload button
 - Real-time streaming display
 
+**`components/ModelSelector.jsx`**
+
+- Configure Council models and Chairman
+- Toggle between OpenRouter and Direct Connection
+- "Clear All" button to reset selection
+- Search and filter by provider, tier, price
+
 **`components/Stage1.jsx`, `Stage2.jsx`, `Stage3.jsx`**
+
 - Tab views for each stage of council deliberation
 - Real-time updates during streaming
 - ReactMarkdown rendering
 
 **Styling**
+
 - Dark theme (CSS variables in `index.css`)
 - Primary color: #4a90e2 (blue)
 - SVG logos for sidebar and login
@@ -182,40 +213,50 @@ The shared LLM module provides unified multi-provider support for LiteLLM router
 ## Key Features
 
 ### Hot Reload
+
 Configuration changes via Setup Wizard are applied without container restart:
+
 - `reload_config()` in config.py reloads all environment variables
 - `reload_auth()` in auth.py reloads JWT and user settings
 - Dynamic config access in openrouter.py (`config.OPENROUTER_API_KEY`)
 
 ### Authentication (Optional)
+
 - JWT tokens with 60-day expiry
 - Users defined via `AUTH_USERS_JSON` env var
 - Enable/disable via `AUTH_ENABLED` flag
 - Auto-logout on token expiry
+- Guest mode support with strict backend validation
 
 ### File Upload
+
 - Supports: PDF, TXT, MD, JPG, PNG, GIF, WebP
 - Size limits: 10MB files, 5MB images
 - Content extracted and sent to council
 
 ### Web Search (Tavily)
+
 - Optional Tavily API integration
 - Toggle per-message in chat interface
 - Search results fed to Stage 1 queries
 
 ### Google Drive Integration
+
 - Upload conversation exports to Drive
 - Requires `credentials/google-credentials.json`
 - Configure `GOOGLE_DRIVE_FOLDER_ID`
 
 ### Export
+
 - Export to Markdown format
 - Download or upload to Google Drive
 
 ## Key Design Decisions
 
 ### Stage 2 Prompt Format
+
 The Stage 2 prompt is very specific to ensure parseable output:
+
 ```
 1. Evaluate each response individually first
 2. Provide "FINAL RANKING:" header
@@ -224,26 +265,32 @@ The Stage 2 prompt is very specific to ensure parseable output:
 ```
 
 ### De-anonymization Strategy
+
 - Models receive: "Response A", "Response B", etc.
 - Backend creates mapping: `{"Response A": "openai/gpt-5.1", ...}`
 - Frontend displays model names in **bold** for readability
 - This prevents bias while maintaining transparency
 
 ### SSE Streaming
+
 - Real-time response streaming via Server-Sent Events
 - Chunk buffering handles split JSON messages
 - Graceful fallback on connection errors
 
 ## Port Configuration
+
 - **Frontend:** 80 (HTTP, redirects to HTTPS), 443 (HTTPS)
 - **Backend:** 8001
 
 ## Docker Volumes
+
 ```yaml
 volumes:
-  - ./data/conversations:/app/data/conversations  # Conversation storage
-  - ./credentials:/app/credentials:ro              # Google Drive creds
-  - ./.env:/app/.env                               # Hot reload support
+  - ./data/conversations:/app/data/conversations # Conversation storage
+  - ./credentials:/app/credentials:ro # Google Drive creds
+  - ./.env:/app/.env # Hot reload support
+  # - ./backend:/app/backend                       # (Dev only)
+  # - ./shared:/app/shared                         # (Dev only)
 ```
 
 ## Environment Variables
@@ -251,27 +298,33 @@ volumes:
 ### Router Configuration
 
 **Router Type Selection:**
-- `ROUTER_TYPE` - Router type: "openrouter" (default), "litellm"
+
+- `ROUTER_TYPE` - Router type: "openrouter" (default), "direct", "litellm" (legacy)
 
 **OpenRouter (when `ROUTER_TYPE=openrouter`):**
+
 - `OPENROUTER_API_KEY` - **Required** for OpenRouter
 - `OPENROUTER_API_URL` - API endpoint (default: `https://openrouter.ai/api/v1/chat/completions`)
 
-**LiteLLM Multi-Provider (when `ROUTER_TYPE=litellm`):**
+**Direct Provider (when `ROUTER_TYPE=direct`):**
 
-*Azure Configuration:*
+_Azure Configuration:_
+
 - `AZURE_PROJECT_ENDPOINT` - Azure OpenAI endpoint (for GPT, DeepSeek, Llama)
 - `AZURE_PROJECT_ANTHROPIC_ENDPOINT` - Azure Anthropic endpoint (for Claude)
 - `AZURE_PROJECT_EXTRA_ENDPOINT` - Azure extra endpoint (for Phi models)
 - `AZURE_API_KEY` - Shared API key for all Azure services
 
-*Google Gemini (choose one):*
+_Google Gemini (choose one):_
+
 - `GEMINI_AI_API_KEY` - Google AI Studio direct API key
 
-*xAI Grok:*
+_xAI Grok:_
+
 - `GROK_API_KEY` - Grok API key
 
-*Ollama (local models):*
+_Ollama (local models):_
+
 - `OLLAMA_HOST` - Ollama server address (default: `localhost:11434`)
   - For Docker: Use `host.docker.internal:11434` if Ollama runs on host
 

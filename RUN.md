@@ -108,14 +108,16 @@ OPENROUTER_API_KEY=sk-or-v1-your-key-here
 **Ollama (Local Models):**
 
 ```bash
-ROUTER_TYPE=ollama
+ROUTER_TYPE=direct
+# Or legacy: ROUTER_TYPE=litellm
 OLLAMA_HOST=localhost:11434
 ```
 
-**LiteLLM (Multi-Provider):**
+**Direct (Multi-Provider - formerly LiteLLM):**
 
 ```bash
-ROUTER_TYPE=litellm
+ROUTER_TYPE=direct
+# Or legacy: ROUTER_TYPE=litellm
 
 # Azure OpenAI (GPT, DeepSeek, Llama)
 AZURE_PROJECT_ENDPOINT=https://your-resource.openai.azure.com/
@@ -142,10 +144,10 @@ LANGFUSE_SECRET_KEY=your-langfuse-secret-key
 LANGFUSE_HOST=http://localhost:3000  # Optional, defaults to localhost
 ```
 
-**Model Aliases (LiteLLM):**
-LiteLLM router uses model aliases defined in `shared/llm/config/model_deployments.yaml`:
+**Model Aliases (Direct/LiteLLM):**
+Direct router uses model aliases defined in `shared/llm/config/model_deployments.yaml`:
 
-- `gpt-5-mini`, `gpt-5-chat`, `gpt-5.1-chat` (Azure OpenAI)
+- `gpt-5-mini`, `gpt-5`, `gpt-5.1` (Azure OpenAI)
 - `claude-sonnet-4.5`, `claude-opus-4.5` (Azure Anthropic)
 - `deepseek-r1`, `deepseek-v3` (Azure DeepSeek)
 - `llama-3.3-70b` (Azure Llama)
@@ -156,8 +158,8 @@ LiteLLM router uses model aliases defined in `shared/llm/config/model_deployment
 **Default Models per Router:**
 
 - OpenRouter: `openai/gpt-5.1`, `google/gemini-3-pro-preview`, `anthropic/claude-sonnet-4.5`, `x-ai/grok-4`
-- Ollama: `deepseek-r1:latest`, `llama3.1:latest`, `qwen3:latest`, `gemma3:latest`
-- LiteLLM: `gpt-5-mini`, `gemini-2.5-pro`, `claude-sonnet-4.5`, `grok-4`
+- Direct (Ollama): `ollama/deepseek-r1:latest`, `ollama/llama3.1:latest`, `ollama/qwen3:latest`, `ollama/gemma3:latest`
+- Direct (Cloud): `gpt-5.1`, `gemini-2.5-pro`, `claude-sonnet-4.5`, `grok-4`
 
 ### Storage Backend
 

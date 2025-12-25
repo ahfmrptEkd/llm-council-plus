@@ -16,25 +16,27 @@ In a bit more detail, here is what happens when you submit a query:
 
 This fork extends [Andrej Karpathy's llm-council](https://github.com/karpathy/llm-council) with production-ready features:
 
-| Feature | Original | LLM Council Plus |
-|---------|----------|------------------|
-| **Deployment** | Manual Python/npm setup | Docker Compose (one command) |
-| **Configuration** | Edit config.py manually | Visual Setup Wizard |
-| **Models** | 4 hardcoded models | Full OpenRouter catalog (100+ models) |
-| **Local Models** | ❌ | ✅ Ollama support |
-| **Authentication** | ❌ | ✅ JWT multi-user system |
-| **Storage** | JSON files only | JSON, PostgreSQL, MySQL |
-| **Token Optimization** | ❌ | ✅ TOON format (20-60% savings) |
-| **Web Search** | ❌ | ✅ Tavily + Exa AI integration |
-| **File Attachments** | ❌ | ✅ PDF, TXT, MD, images |
-| **Tools** | ❌ | ✅ Calculator, Wikipedia, ArXiv, Yahoo Finance |
-| **Real-time Streaming** | Basic | SSE with state persistence |
-| **Error Handling** | Silent failures | Visual error indicators per model |
-| **Hot Reload** | ❌ | ✅ Config changes without restart |
+| Feature                 | Original                | LLM Council Plus                               |
+| ----------------------- | ----------------------- | ---------------------------------------------- |
+| **Deployment**          | Manual Python/npm setup | Docker Compose (one command)                   |
+| **Configuration**       | Edit config.py manually | Visual Setup Wizard                            |
+| **Models**              | 4 hardcoded models      | Full OpenRouter catalog (100+ models)          |
+| **Direct Connection**   | ❌                      | ✅ Azure, Google, xAI support                  |
+| **Local Models**        | ❌                      | ✅ Ollama support                              |
+| **Authentication**      | ❌                      | ✅ JWT multi-user system                       |
+| **Storage**             | JSON files only         | JSON, PostgreSQL, MySQL                        |
+| **Token Optimization**  | ❌                      | ✅ TOON format (20-60% savings)                |
+| **Web Search**          | ❌                      | ✅ Tavily + Exa AI integration                 |
+| **File Attachments**    | ❌                      | ✅ PDF, TXT, MD, images                        |
+| **Tools**               | ❌                      | ✅ Calculator, Wikipedia, ArXiv, Yahoo Finance |
+| **Real-time Streaming** | Basic                   | SSE with state persistence                     |
+| **Error Handling**      | Silent failures         | Visual error indicators per model              |
+| **Hot Reload**          | ❌                      | ✅ Config changes without restart              |
 
 ## Quick Start
 
 **Easiest way — use the Setup Wizard:**
+
 ```bash
 cp .env.example .env
 docker compose up --build
@@ -43,12 +45,14 @@ docker compose up --build
 ```
 
 The Setup Wizard lets you:
-- Choose LLM provider (OpenRouter or Ollama)
+
+- Choose LLM provider (OpenRouter or Direct/Ollama)
 - Enter API keys
 - Optionally enable authentication
 - Optionally configure web search (Tavily or Exa)
 
 **Alternative: Manual configuration**
+
 ```bash
 cp .env.example .env
 # Edit .env (see examples below)
@@ -69,11 +73,13 @@ This project was 99% vibe coded as a fun Saturday hack because I wanted to explo
 The project uses [uv](https://docs.astral.sh/uv/) for project management.
 
 **Backend:**
+
 ```bash
 uv sync
 ```
 
 **Frontend:**
+
 ```bash
 cd frontend
 npm install
@@ -90,7 +96,7 @@ OPENROUTER_API_KEY=sk-or-v1-...
 
 Get your API key at [openrouter.ai](https://openrouter.ai/). Make sure to purchase the credits you need, or sign up for automatic top up.
 
-Alternatively, you can use Ollama for local models by setting `ROUTER_TYPE=ollama` in your `.env` file (see below).
+Alternatively, you can use **Direct Connection** (Azure, Google, etc.) or Ollama for local models by setting `ROUTER_TYPE=direct` in your `.env` file.
 
 Models are selected via the Setup Wizard or dynamically in the UI. Browse all available models at [openrouter.ai/models](https://openrouter.ai/models).
 
@@ -110,11 +116,13 @@ Backend API is available at http://localhost:8001
 ### Development Mode (without Docker)
 
 Terminal 1 (Backend):
+
 ```bash
 uv run python -m backend.main
 ```
 
 Terminal 2 (Frontend):
+
 ```bash
 cd frontend
 npm run dev
@@ -125,17 +133,21 @@ Then open http://localhost:5173 in your browser.
 ## Common Configuration
 
 ### OpenRouter (cloud)
+
 ```bash
 ROUTER_TYPE=openrouter
 OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
 ### Ollama (local)
+
 ```bash
-ROUTER_TYPE=ollama
+ROUTER_TYPE=direct
+# Or legacy: ROUTER_TYPE=litellm
 ```
 
 If you're running the backend in Docker and Ollama is running on your host machine, set:
+
 ```bash
 OLLAMA_HOST=host.docker.internal:11434
 ```
@@ -143,16 +155,19 @@ OLLAMA_HOST=host.docker.internal:11434
 ## Web Search (Optional)
 
 The UI can run web search and inject results into Stage 1 as context:
+
 - **Heuristic tool usage**: search tools run only when the prompt has explicit search intent.
 - **Web Search toggle**: forces a web search; the Chairman optimizes the query and runs Tavily/Exa.
 
 Enable one of:
+
 ```bash
 ENABLE_TAVILY=true
 TAVILY_API_KEY=tvly-...
 ```
 
 or:
+
 ```bash
 ENABLE_EXA=true
 EXA_API_KEY=...
