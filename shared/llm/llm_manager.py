@@ -19,6 +19,8 @@ from ..core.logger import setup_logger
 from .cost_logger import CostLogger
 from ..utils.preprocessor import TextPreprocessor
 
+# Disable verbose logging for production
+litellm.set_verbose = False
 litellm.suppress_debug_info = True
 
 
@@ -136,6 +138,7 @@ class LLMManager:
         elif "gpt" in model_lower or "deepseek" in model_lower or "llama" in model_lower:
             endpoint = os.getenv("AZURE_PROJECT_ENDPOINT")
             api_key = os.getenv("AZURE_API_KEY")
+            logger.info(f"[ENV_DEBUG] Azure GPT model {model_alias}: AZURE_PROJECT_ENDPOINT={'SET' if endpoint else 'NOT_SET'}, AZURE_API_KEY={'SET' if api_key else 'NOT_SET'}")
             if not endpoint or not api_key:
                 raise ValueError("AZURE_PROJECT_ENDPOINT and AZURE_API_KEY must be set.")
 
@@ -158,7 +161,9 @@ class LLMManager:
 
         elif "claude" in model_lower:
             endpoint = os.getenv("AZURE_PROJECT_ANTHROPIC_ENDPOINT")
-            api_key = os.getenv("AZURE_API_KEY")
+            # Try both AZURE_API_KEY and ANTHROPIC_API_KEY for parallel call compatibility
+            api_key = os.getenv("AZURE_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
+            logger.info(f"[ENV_DEBUG] Claude model {model_alias}: AZURE_PROJECT_ANTHROPIC_ENDPOINT={'SET' if endpoint else 'NOT_SET'}, AZURE_API_KEY={'SET' if os.getenv('AZURE_API_KEY') else 'NOT_SET'}, ANTHROPIC_API_KEY={'SET' if os.getenv('ANTHROPIC_API_KEY') else 'NOT_SET'}")
             if not endpoint or not api_key:
                 raise ValueError("AZURE_PROJECT_ANTHROPIC_ENDPOINT and AZURE_API_KEY must be set.")
 
@@ -172,6 +177,7 @@ class LLMManager:
         elif "grok" in model_lower:
             # LiteLLM uses XAI_API_KEY for xAI/Grok models
             api_key = os.getenv("XAI_API_KEY")
+            logger.info(f"[ENV_DEBUG] Grok model {model_alias}: XAI_API_KEY={'SET' if api_key else 'NOT_SET'}")
             if not api_key:
                 raise ValueError("XAI_API_KEY must be set for Grok models.")
 
@@ -179,16 +185,14 @@ class LLMManager:
             config.update({"model": f"xai/{deployment_name}"})
 
         elif "gemini" in model_lower:
-            api_key = os.getenv("GEMINI_AI_API_KEY")
-            if api_key:
-                config.update({"model": f"gemini/{deployment_name}", "api_key": api_key})
-            else:
-                project = os.getenv("VERTEX_PROJECT_ID")
-                location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-                if not project:
-                    raise ValueError("VERTEX_PROJECT_ID or GEMINI_AI_API_KEY must be set.")
-
-                config.update({"model": f"vertex_ai/{deployment_name}", "vertex_project": project, "vertex_location": location})
+            # LiteLLM + LangChain requires api_key parameter (doesn't auto-read env vars)
+            # Must use GEMINI_API_KEY env var name (LiteLLM standard)
+            # See: https://docs.litellm.ai/docs/providers/gemini
+            api_key = os.getenv("GEMINI_API_KEY")
+            logger.info(f"[ENV_DEBUG] Gemini model {model_alias}: GEMINI_API_KEY={'SET' if api_key else 'NOT_SET'}")
+            # Pass api_key explicitly (LangChain ChatLiteLLM doesn't read env vars automatically)
+            config.update({"model": f"gemini/{deployment_name}", "api_key": api_key})
+            logger.info(f"[ENV_DEBUG] Using Google AI Studio API for {model_alias}")
 
         else:
             endpoint = os.getenv("AZURE_PROJECT_ENDPOINT")
@@ -243,8 +247,20 @@ class LLMManager:
 
         logger.info(f"Creating LiteLLM instance: {model} -> {llm_kwargs['model']}")
 
+        # Debug: Log API key presence for parallel call debugging
+        has_api_key = 'api_key' in llm_kwargs and llm_kwargs['api_key'] is not None
+        has_api_base = 'api_base' in llm_kwargs and llm_kwargs['api_base'] is not None
+        logger.info(f"[API_KEY_DEBUG] Model: {model}, has_api_key: {has_api_key}, has_api_base: {has_api_base}")
+        if has_api_key:
+            key_preview = llm_kwargs['api_key'][:10] + "..." if len(llm_kwargs['api_key']) > 10 else "***"
+            logger.info(f"[API_KEY_DEBUG] API key preview: {key_preview}")
+
+        # IMPORTANT: Disable caching to avoid async HTTP client re-use issues
+        # See: https://github.com/BerriAI/litellm/issues/7667
+        # When LLM instances are cached and shared across parallel async calls,
+        # the underlying httpx AsyncClient can be re-used on different event loops
         llm = ChatLiteLLM(**llm_kwargs)
-        self.llm_cache[cache_key] = llm
+        # self.llm_cache[cache_key] = llm  # Disabled caching
         return llm
 
     def _extract_token_usage(self, response: Any, messages: Optional[List] = None) -> Dict[str, int]:

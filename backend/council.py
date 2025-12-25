@@ -769,6 +769,10 @@ Now provide your evaluation and ranking:"""
 
     messages = [{"role": "user", "content": ranking_prompt}]
 
+    # DEBUG: Log prompt length
+    logger.info("[STAGE2] Ranking prompt length: %d chars, %d tokens (approx)",
+               len(ranking_prompt), len(ranking_prompt.split()))
+
     # OPTIMIZATION: Use only models that succeeded in Stage 1
     # This avoids rate limits - models that just responded are less likely to be rate-limited
     # than making fresh requests to models that may have failed
@@ -789,6 +793,13 @@ Now provide your evaluation and ranking:"""
     logger.debug("[STAGE2] ========== STAGE 2: COLLECT RANKINGS ==========")
     logger.debug("[STAGE2] Evaluating %d valid responses", len(valid_stage1))
     logger.debug("[STAGE2] Using %d models from Stage 1 successes: %s", len(council_models), council_models)
+
+    # CRITICAL: Add delay to avoid hitting API rate limits
+    # Gemini Free Tier: 5 RPM for Pro (12s), 10 RPM for Flash (6s)
+    # Azure/xAI may also have rate limits
+    # Use 15s to be safe for all providers
+    await asyncio.sleep(15)
+    logger.info("[STAGE2] Waited 15s to avoid API rate limits")
 
     # Get rankings from models in parallel
     responses = await query_models_parallel(council_models, messages, stage="STAGE2")
@@ -837,9 +848,19 @@ Now provide your evaluation and ranking:"""
                 logger.warning("[STAGE2] Model %s returned empty content", model)
 
     # Log summary
+    successful_count = len([r for r in stage2_results if not r.get('error')])
     if failed_count > 0:
         logger.warning("[STAGE2] %d/%d models failed, %d successful rankings",
-                      failed_count, len(council_models), len(stage2_results))
+                      failed_count, len(council_models), successful_count)
+
+    # Debug: Log each ranking result
+    for i, result in enumerate(stage2_results):
+        if result.get('error'):
+            logger.info("[STAGE2] Result %d (%s): ERROR - %s",
+                        i, result.get('model'), result.get('error_message'))
+        else:
+            logger.info("[STAGE2] Result %d (%s): SUCCESS - has 'ranking' key: %s",
+                        i, result.get('model'), 'ranking' in result)
 
     return stage2_results, label_to_model
 
@@ -953,6 +974,10 @@ Provide a clear, well-reasoned final answer that represents the council's collec
     if tool_outputs:
         logger.debug("[STAGE3] Tool outputs: %d", len(tool_outputs))
 
+    # Add delay to avoid API rate limits (Stage 2 just finished)
+    await asyncio.sleep(15)
+    logger.info("[STAGE3] Waited 15s to avoid API rate limits")
+
     # Query the chairman model
     response = await query_model(chairman_model, messages, stage="STAGE3")
 
@@ -1056,7 +1081,13 @@ def calculate_aggregate_rankings(
     model_positions = defaultdict(list)
 
     for ranking in stage2_results:
-        ranking_text = ranking['ranking']
+        # Skip failed rankings (those with 'error' flag)
+        if ranking.get('error'):
+            continue
+
+        ranking_text = ranking.get('ranking')
+        if not ranking_text:
+            continue
 
         # Parse the ranking from the structured format
         parsed_ranking = parse_ranking_from_text(ranking_text)
