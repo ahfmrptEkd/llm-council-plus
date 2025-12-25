@@ -504,7 +504,10 @@ async def get_available_models(router: Optional[str] = None):
             # Extract provider name from model name
             def _get_provider_from_model(model_id: str) -> str:
                 model_lower = model_id.lower()
-                if "gpt" in model_lower:
+                # Check for explicit provider prefixes or specific platforms first
+                if "ollama" in model_lower or model_lower.startswith("ollama/"):
+                    return "Ollama (Local)"
+                elif "gpt" in model_lower:
                     return "Azure OpenAI"
                 elif "claude" in model_lower:
                     return "Azure Anthropic"
@@ -518,8 +521,6 @@ async def get_available_models(router: Optional[str] = None):
                     return "xAI"
                 elif "gemini" in model_lower:
                     return "Google"
-                elif "ollama" in model_lower:
-                    return "Ollama (Local)"
                 return "Unknown"
             
             # Flatten deployments config and build model list
