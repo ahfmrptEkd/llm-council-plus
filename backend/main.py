@@ -121,6 +121,7 @@ class CreateConversationRequest(BaseModel):
     models: Optional[List[str]] = Field(default=None, max_length=20)  # Council models (max 20)
     chairman: Optional[str] = Field(default=None, max_length=100)  # Chairman/judge model
     username: Optional[str] = Field(default=None, max_length=50)  # User who created the conversation
+    router: Optional[str] = Field(default=None, max_length=50)  # Router type
 
 
 class FileAttachment(BaseModel):
@@ -163,6 +164,7 @@ class ConversationMetadata(BaseModel):
     title: str
     message_count: int
     username: Optional[str] = None
+    router: Optional[str] = None
 
 
 class Conversation(BaseModel):
@@ -174,6 +176,7 @@ class Conversation(BaseModel):
     models: Optional[List[str]] = None
     chairman: Optional[str] = None
     username: Optional[str] = None
+    router: Optional[str] = None
 
 
 @app.get("/")
@@ -212,7 +215,8 @@ async def get_setup_status():
     from .config import (
         ROUTER_TYPE, OPENROUTER_API_KEY,
         ENABLE_TAVILY, TAVILY_API_KEY,
-        ENABLE_EXA, EXA_API_KEY
+        ENABLE_EXA, EXA_API_KEY,
+        get_available_routers
     )
 
     needs_setup = ROUTER_TYPE == "openrouter" and not OPENROUTER_API_KEY
@@ -224,6 +228,7 @@ async def get_setup_status():
     return {
         "setup_required": needs_setup,
         "router_type": ROUTER_TYPE,
+        "available_routers": get_available_routers(),
         "has_api_key": bool(OPENROUTER_API_KEY),
         "web_search_enabled": web_search_enabled,
         "tavily_enabled": tavily_enabled,
@@ -427,22 +432,41 @@ def _extract_provider(model_id: str, model_name: str) -> str:
 
 
 @app.get("/api/models")
-async def get_available_models():
+async def get_available_models(router: Optional[str] = None):
     """
     Get available models from OpenRouter, LiteLLM (cloud), or LiteLLM (Ollama).
     Returns formatted model list with pricing and capabilities.
-    Cached for 5 minutes to reduce API calls.
+    Cached for 5 minutes to reduce API calls (per router).
     """
-    from .config import ROUTER_TYPE, OPENROUTER_API_KEY, OLLAMA_HOST
+    from .config import ROUTER_TYPE as DEFAULT_ROUTER, OPENROUTER_API_KEY, OLLAMA_HOST
 
     global _models_cache
-
-    # Check cache
-    if _models_cache["data"] and (time.time() - _models_cache["timestamp"]) < _MODELS_CACHE_TTL:
+    
+    # Use requested router or default
+    active_router = router if router else DEFAULT_ROUTER
+    active_router = active_router.lower()
+    
+    # Cache key needs to include router type
+    cache_key = f"data_{active_router}"
+    cache_ts_key = f"timestamp_{active_router}"
+    
+    # Check cache (simple dict based cache, extending to support multiple keys)
+    # Re-using _models_cache but making it a nested dict or using specific keys
+    # Current structure: {"data": ..., "timestamp": ...}
+    # For backward compatibility and simplicity, let's just bypass cache if router != DEFAULT or reset it
+    # Better: upgrade cache structure
+    
+    # For now, let's just cache the LAST request's router type to keep it simple without breaking globals
+    # If the requested router is different from cached data's router, invalidate
+    current_cache_router = _models_cache.get("router", DEFAULT_ROUTER)
+    
+    if (active_router == current_cache_router and 
+        _models_cache.get("data") and 
+        (time.time() - _models_cache.get("timestamp", 0)) < _MODELS_CACHE_TTL):
         return _models_cache["data"]
 
-    logger.info(f"get_available_models: ROUTER_TYPE={ROUTER_TYPE}")
-    if ROUTER_TYPE == "litellm":
+    logger.info(f"get_available_models: router={active_router}")
+    if active_router == "litellm":
         # Using litellm with cloud models - load from shared/llm/config YAML files
         try:
             import yaml
@@ -542,7 +566,7 @@ async def get_available_models():
             
             from .config import MAX_COUNCIL_MODELS
             result = {"models": models, "router_type": "litellm", "count": len(models), "max_models": MAX_COUNCIL_MODELS}
-            _models_cache = {"data": result, "timestamp": time.time()}
+            _models_cache = {"data": result, "timestamp": time.time(), "router": "litellm"}
             return result
             
         except Exception as e:
@@ -618,7 +642,7 @@ async def get_available_models():
 
                 from .config import MAX_COUNCIL_MODELS
                 result = {"models": models, "router_type": "openrouter", "count": len(models), "max_models": MAX_COUNCIL_MODELS}
-                _models_cache = {"data": result, "timestamp": time.time()}
+                _models_cache = {"data": result, "timestamp": time.time(), "router": "openrouter"}
                 return result
 
         except httpx.RequestError as e:
@@ -707,7 +731,8 @@ async def create_conversation(
         conversation_id,
         models=request.models,
         chairman=request.chairman,
-        username=username
+        username=username,
+        router=request.router
     )
     return conversation
 
@@ -947,6 +972,9 @@ async def send_message(
 
     # Get conversation history for context (exclude the just-added user message)
     conversation_history = conversation["messages"]  # History before current question
+    
+    # Get router from conversation metadata
+    conversation_router = conversation.get("router")
 
     # Run the 3-stage council process with full query including attachments
     images_for_council = image_attachments if image_attachments else None
@@ -954,7 +982,8 @@ async def send_message(
         full_query,
         conversation_history,
         images=images_for_council,
-        conversation_id=conversation_id  # For memory system
+        conversation_id=conversation_id,  # For memory system
+        router_type=conversation_router
     )
 
     # Add assistant message with all stages and metadata
@@ -1006,6 +1035,7 @@ async def send_message_stream(
     # Get custom models and chairman from conversation (if set)
     conv_models = conversation.get("models")
     conv_chairman = conversation.get("chairman")
+    conv_router = conversation.get("router")
 
     async def event_generator():
         # Initialize state variables OUTSIDE try block so finally can access them
@@ -1027,7 +1057,7 @@ async def send_message_stream(
 
             # Start title generation in parallel (don't await yet)
             if is_first_message:
-                title_task = asyncio.create_task(generate_conversation_title(request.content, model=conv_chairman))
+                title_task = asyncio.create_task(generate_conversation_title(request.content, model=conv_chairman, router_type=conv_router))
 
             # Stage 1: Collect responses with streaming - send each model's response as it completes
             # Pass images for multimodal queries
@@ -1042,7 +1072,8 @@ async def send_message_stream(
                 images_for_council,
                 conversation_id,
                 force_web_search=request.web_search,
-                chairman=conv_chairman
+                chairman=conv_chairman,
+                router_type=conv_router
             ):
                 # Handle tool_outputs message (first yield if tools were used)
                 if item.get("type") == "tool_outputs":
@@ -1063,7 +1094,7 @@ async def send_message_stream(
             yield f"data: {json.dumps({'type': 'stage2_start', 'timestamp': stage2_start_time})}\n\n"
 
             # Run Stage 2 with periodic heartbeats (CloudFront times out after ~30s without data)
-            stage2_task = asyncio.create_task(stage2_collect_rankings(full_query, stage1_results, conv_models))
+            stage2_task = asyncio.create_task(stage2_collect_rankings(full_query, stage1_results, conv_models, router_type=conv_router))
             heartbeat_interval = 15  # Send heartbeat every 15 seconds
             while not stage2_task.done():
                 try:
@@ -1084,7 +1115,7 @@ async def send_message_stream(
             yield f"data: {json.dumps({'type': 'stage3_start', 'timestamp': stage3_start_time})}\n\n"
 
             # Run Stage 3 with periodic heartbeats
-            stage3_task = asyncio.create_task(stage3_synthesize_final(full_query, stage1_results, stage2_results, conv_chairman, tool_outputs=tool_outputs))
+            stage3_task = asyncio.create_task(stage3_synthesize_final(full_query, stage1_results, stage2_results, conv_chairman, tool_outputs=tool_outputs, router_type=conv_router))
             while not stage3_task.done():
                 try:
                     await asyncio.wait_for(asyncio.shield(stage3_task), timeout=heartbeat_interval)

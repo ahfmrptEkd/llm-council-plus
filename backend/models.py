@@ -31,6 +31,7 @@ class Conversation(Base):
     models = Column(JSON, nullable=True)  # List of council model IDs
     chairman = Column(String(255), nullable=True)  # Chairman/judge model ID
     username = Column(String(255), nullable=True)  # User who created the conversation
+    router = Column(String(50), nullable=True)  # Router type
 
     # Indexes for performance
     __table_args__ = (
@@ -50,6 +51,7 @@ class Conversation(Base):
             "models": self.models,
             "chairman": self.chairman,
             "username": self.username,
+            "router": self.router,
         }
 
     def __repr__(self):

@@ -221,7 +221,8 @@ async def query_models_parallel(
 
 async def query_models_streaming(
     models: List[str],
-    messages: List[Dict[str, Any]]
+    messages: List[Dict[str, Any]],
+    stage: str = None
 ):
     """
     Query multiple models in parallel and yield results as they complete.
@@ -243,7 +244,7 @@ async def query_models_streaming(
     async def query_with_name(model: str):
         req_start = time.time() - start_time
         logger.debug("[PARALLEL] Starting request to %s at t=%.2fs", model, req_start)
-        response = await query_model(model, messages)
+        response = await query_model(model, messages, stage=stage)
         req_end = time.time() - start_time
         logger.debug("[PARALLEL] Got response from %s at t=%.2fs", model, req_end)
         return (model, response)

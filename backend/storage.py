@@ -135,7 +135,8 @@ def _json_create_conversation(
     conversation_id: str,
     models: Optional[List[str]] = None,
     chairman: Optional[str] = None,
-    username: Optional[str] = None
+    username: Optional[str] = None,
+    router: Optional[str] = None
 ) -> Dict[str, Any]:
     """Create conversation in JSON file with exclusive lock."""
     ensure_data_dir()
@@ -147,7 +148,8 @@ def _json_create_conversation(
         "messages": [],
         "models": models,
         "chairman": chairman,
-        "username": username
+        "username": username,
+        "router": router
     }
 
     path = get_conversation_path(conversation_id)
@@ -234,7 +236,8 @@ def _db_create_conversation(
     conversation_id: str,
     models: Optional[List[str]] = None,
     chairman: Optional[str] = None,
-    username: Optional[str] = None
+    username: Optional[str] = None,
+    router: Optional[str] = None
 ) -> Dict[str, Any]:
     """Create conversation in database."""
     db = SessionLocal()
@@ -245,7 +248,8 @@ def _db_create_conversation(
             messages=[],
             models=models,
             chairman=chairman,
-            username=username
+            username=username,
+            router=router
         )
         db.add(conversation)
         db.commit()
@@ -285,6 +289,7 @@ def _db_save_conversation(conversation: Dict[str, Any]):
             db_conversation.models = conversation.get('models')
             db_conversation.chairman = conversation.get('chairman')
             db_conversation.username = conversation.get('username')
+            db_conversation.router = conversation.get('router')
             db.commit()
     finally:
         db.close()
@@ -346,7 +351,8 @@ def create_conversation(
     conversation_id: str,
     models: Optional[List[str]] = None,
     chairman: Optional[str] = None,
-    username: Optional[str] = None
+    username: Optional[str] = None,
+    router: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Create a new conversation.
@@ -356,13 +362,14 @@ def create_conversation(
         models: Optional list of council model IDs
         chairman: Optional chairman/judge model ID
         username: Optional username of the user who created the conversation
+        router: Optional router type (openrouter/litellm)
 
     Returns:
         New conversation dict
     """
     if is_using_database():
-        return _db_create_conversation(conversation_id, models, chairman, username)
-    return _json_create_conversation(conversation_id, models, chairman, username)
+        return _db_create_conversation(conversation_id, models, chairman, username, router)
+    return _json_create_conversation(conversation_id, models, chairman, username, router)
 
 
 def get_conversation(conversation_id: str) -> Optional[Dict[str, Any]]:

@@ -101,14 +101,28 @@ from .config import (
 from .tools import get_available_tools
 from .memory import CouncilMemorySystem
 
-# Import router module based on configuration
-# Note: Ollama is now integrated into litellm router (use ROUTER_TYPE=litellm)
-if ROUTER_TYPE == "openrouter":
-    from .openrouter import query_models_parallel, query_model, query_models_streaming, build_message_content
-elif ROUTER_TYPE == "litellm":
-    from .litellm_router import query_models_parallel, query_model, query_models_streaming, build_message_content
-else:
-    raise ValueError(f"Invalid ROUTER_TYPE: {ROUTER_TYPE}. Must be 'openrouter' or 'litellm'")
+# Import router modules
+try:
+    from . import openrouter
+    from . import litellm_router
+except ImportError:
+    # This might happen if dependencies are missing, but we expect them to be there
+    logger.warning("Failed to import router modules. Ensure dependencies are installed.")
+    openrouter = None
+    litellm_router = None
+
+def get_router_functions(router_type: str):
+    """Get the appropriate query functions based on router type."""
+    if router_type == "litellm":
+        return litellm_router
+    elif router_type == "openrouter":
+        return openrouter
+    else:
+        # Fallback to configured default
+        if ROUTER_TYPE == "litellm":
+            return litellm_router
+        return openrouter
+
 
 
 def build_context_prompt(conversation_history: List[Dict[str, Any]], user_query: str) -> str:
@@ -149,7 +163,8 @@ Please answer the follow-up question, taking into account the previous conversat
 def build_multimodal_messages(
     user_query: str,
     images: Optional[List[Dict[str, str]]] = None,
-    conversation_history: Optional[List[Dict[str, Any]]] = None
+    conversation_history: Optional[List[Dict[str, Any]]] = None,
+    router_type: str = None
 ) -> List[Dict[str, Any]]:
     """
     Build messages array for LLM API, supporting both text and images.
@@ -158,15 +173,20 @@ def build_multimodal_messages(
         user_query: The user's text question
         images: Optional list of image dicts with 'content' (base64 data URI) and 'filename'
         conversation_history: Optional list of previous messages for context
+        router_type: The router type ('openrouter' or 'litellm')
 
     Returns:
         List of message dicts ready for OpenRouter API
     """
+    # Get router-specific content builder
+    router = get_router_functions(router_type)
+    
     # Build the text prompt with context
     text_prompt = build_context_prompt(conversation_history or [], user_query)
 
     # Build message content (text only or multimodal)
-    content = build_message_content(text_prompt, images)
+    # Both routers implement build_message_content with same signature
+    content = router.build_message_content(text_prompt, images)
 
     return [{"role": "user", "content": content}]
 
@@ -499,7 +519,8 @@ async def stage1_collect_responses(
     conversation_history: List[Dict[str, Any]] = None,
     models: List[str] = None,
     images: Optional[List[Dict[str, str]]] = None,
-    conversation_id: Optional[str] = None
+    conversation_id: Optional[str] = None,
+    router_type: str = None
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, str]]]:
     """
     Stage 1: Collect individual responses from all council models.
@@ -510,12 +531,14 @@ async def stage1_collect_responses(
         models: Optional list of model IDs to use (defaults to COUNCIL_MODELS)
         images: Optional list of image attachments for multimodal queries
         conversation_id: Optional conversation ID for memory system
+        router_type: Optional router type override
 
     Returns:
         Tuple of (stage1_results, tool_outputs)
     """
+    router = get_router_functions(router_type)
     # Build messages with optional image support
-    messages = build_multimodal_messages(user_query, images, conversation_history)
+    messages = build_multimodal_messages(user_query, images, conversation_history, router_type=router_type)
 
     # Add tool context if the query suggests tool usage (Feature 4)
     tool_outputs: List[Dict[str, str]] = []
@@ -552,7 +575,7 @@ Search Results:
     logger.debug("[STAGE1] Messages: %d (system=%d)", len(messages), sum(1 for m in messages if m.get('role')=='system'))
 
     # Query all models in parallel
-    responses = await query_models_parallel(council_models, messages, stage="STAGE1")
+    responses = await router.query_models_parallel(council_models, messages, stage="STAGE1")
 
     # Format results - include both successes and errors
     stage1_results = []
@@ -590,7 +613,8 @@ async def stage1_collect_responses_streaming(
     images: Optional[List[Dict[str, str]]] = None,
     conversation_id: Optional[str] = None,
     force_web_search: bool = False,
-    chairman: str = None
+    chairman: str = None,
+    router_type: str = None
 ):
     """
     Stage 1: Collect individual responses from all council models with streaming.
@@ -604,12 +628,14 @@ async def stage1_collect_responses_streaming(
         conversation_id: Optional conversation ID for memory system
         force_web_search: If True, Chairman optimizes query and runs Tavily search
         chairman: Optional chairman model for search query optimization
+        router_type: Optional router type override
 
     Yields:
         Dict with 'model', 'response', and optionally 'tool_outputs' keys
     """
+    router = get_router_functions(router_type)
     # Build messages with optional image support
-    messages = build_multimodal_messages(user_query, images, conversation_history)
+    messages = build_multimodal_messages(user_query, images, conversation_history, router_type=router_type)
 
     # Add tool context
     tool_outputs: List[Dict[str, str]] = []
@@ -617,7 +643,7 @@ async def stage1_collect_responses_streaming(
     # Force web search: Chairman optimizes query, then Tavily searches
     if force_web_search:
         logger.info("[STAGE1-STREAM] Force web search enabled, optimizing query with Chairman")
-        optimized_query = await optimize_search_query(user_query, chairman)
+        optimized_query = await optimize_search_query(user_query, chairman, router_type=router_type)
         tool_outputs = run_tavily_direct(optimized_query)
         logger.info("[STAGE1-STREAM] Web search returned %d results", len(tool_outputs))
     # Regular tool detection (Feature 4)
@@ -657,7 +683,7 @@ Search Results:
         yield {"type": "tool_outputs", "tool_outputs": tool_outputs}
 
     # Query all models in parallel and yield results as they complete
-    async for model, response in query_models_streaming(council_models, messages):
+    async for model, response in router.query_models_streaming(council_models, messages, stage="STAGE1"):
         if response is None:
             # Shouldn't happen with new error handling, but safety fallback
             yield {
@@ -685,7 +711,8 @@ Search Results:
 async def stage2_collect_rankings(
     user_query: str,
     stage1_results: List[Dict[str, Any]],
-    models: List[str] = None
+    models: List[str] = None,
+    router_type: str = None
 ) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
     """
     Stage 2: Each model ranks the anonymized responses.
@@ -698,6 +725,7 @@ async def stage2_collect_rankings(
     Returns:
         Tuple of (rankings list, label_to_model mapping)
     """
+    router = get_router_functions(router_type)
     # VALIDATION: Skip Stage 2 if no Stage 1 results
     if not stage1_results:
         logger.warning("[STAGE2] No Stage 1 results to rank, skipping Stage 2")
@@ -795,7 +823,7 @@ Now provide your evaluation and ranking:"""
     logger.debug("[STAGE2] Evaluating %d valid responses", len(valid_stage1))
     logger.debug("[STAGE2] Using %d models from Stage 1 successes: %s", len(council_models), council_models)
 
-    # CRITICAL: Add delay to avoid hitting API rate limits
+    # CRITICAL: Add delay to avoid API rate limits
     # Gemini Free Tier: 5 RPM for Pro (12s), 10 RPM for Flash (6s)
     # Azure/xAI may also have rate limits
     # Use 15s to be safe for all providers
@@ -803,7 +831,7 @@ Now provide your evaluation and ranking:"""
     logger.info("[STAGE2] Waited 15s to avoid API rate limits")
 
     # Get rankings from models in parallel
-    responses = await query_models_parallel(council_models, messages, stage="STAGE2")
+    responses = await router.query_models_parallel(council_models, messages, stage="STAGE2")
 
     # Format results - include both successes and errors
     stage2_results = []
@@ -871,7 +899,8 @@ async def stage3_synthesize_final(
     stage1_results: List[Dict[str, Any]],
     stage2_results: List[Dict[str, Any]],
     chairman: str = None,
-    tool_outputs: Optional[List[Dict[str, str]]] = None
+    tool_outputs: Optional[List[Dict[str, str]]] = None,
+    router_type: str = None
 ) -> Dict[str, Any]:
     """
     Stage 3: Chairman synthesizes final response.
@@ -882,10 +911,12 @@ async def stage3_synthesize_final(
         stage2_results: Rankings from Stage 2
         chairman: Optional chairman model ID (defaults to CHAIRMAN_MODEL)
         tool_outputs: Optional tool outputs from Stage 1
+        router_type: Optional router type override
 
     Returns:
         Dict with 'model' and 'response' keys
     """
+    router = get_router_functions(router_type)
     # Use provided chairman or fall back to default
     chairman_model = chairman if chairman else CHAIRMAN_MODEL
 
@@ -980,7 +1011,7 @@ Provide a clear, well-reasoned final answer that represents the council's collec
     logger.info("[STAGE3] Waited 15s to avoid API rate limits")
 
     # Query the chairman model
-    response = await query_model(chairman_model, messages, stage="STAGE3")
+    response = await router.query_model(chairman_model, messages, stage="STAGE3")
 
     if response is None:
         # Try fallback: use models from Stage 1 as chairman (try each until one works)
@@ -995,7 +1026,7 @@ Provide a clear, well-reasoned final answer that represents the council's collec
         for fallback_model in fallback_models:
             logger.info("Attempting to use %s as fallback chairman (%d models remaining)...",
                        fallback_model, len(fallback_models) - fallback_models.index(fallback_model) - 1)
-            fallback_response = await query_model(fallback_model, messages, stage="STAGE3_FALLBACK")
+            fallback_response = await router.query_model(fallback_model, messages, stage="STAGE3_FALLBACK")
 
             if fallback_response is not None and fallback_response.get('content'):
                 logger.info("Fallback successful with model %s", fallback_model)
@@ -1115,17 +1146,19 @@ def calculate_aggregate_rankings(
     return aggregate
 
 
-async def generate_conversation_title(user_query: str, model: str = None) -> str:
+async def generate_conversation_title(user_query: str, model: str = None, router_type: str = None) -> str:
     """
     Generate a short title for a conversation based on the first user message.
 
     Args:
         user_query: The first user message
         model: Optional model ID to use (defaults to CHAIRMAN_MODEL)
+        router_type: Optional router type
 
     Returns:
         A short title (3-5 words)
     """
+    router = get_router_functions(router_type)
     title_prompt = f"""Generate a very short title (3-5 words maximum) that summarizes the following question.
 The title should be concise and descriptive. Do not use quotes or punctuation in the title.
 
@@ -1138,7 +1171,7 @@ Title:"""
     # Use the provided model or the default chairman model for title generation
     target_model = model if model else CHAIRMAN_MODEL
     # Increased timeout for Ollama models which may need time to load
-    response = await query_model(target_model, messages, timeout=TITLE_GENERATION_TIMEOUT)
+    response = await router.query_model(target_model, messages, timeout=TITLE_GENERATION_TIMEOUT)
 
     if response is None:
         # Fallback to a generic title
@@ -1160,7 +1193,8 @@ async def run_full_council(
     user_query: str,
     conversation_history: List[Dict[str, Any]] = None,
     images: Optional[List[Dict[str, str]]] = None,
-    conversation_id: Optional[str] = None
+    conversation_id: Optional[str] = None,
+    router_type: str = None
 ) -> Tuple[List, List, Dict, Dict]:
     """
     Run the complete 3-stage council process.
@@ -1170,6 +1204,7 @@ async def run_full_council(
         conversation_history: Optional list of previous messages for context
         images: Optional list of image attachments for multimodal queries
         conversation_id: Optional conversation ID for memory system
+        router_type: Optional router type override
 
     Returns:
         Tuple of (stage1_results, stage2_results, stage3_result, metadata)
@@ -1182,7 +1217,8 @@ async def run_full_council(
         user_query,
         conversation_history,
         images=images,
-        conversation_id=conversation_id
+        conversation_id=conversation_id,
+        router_type=router_type
     )
 
     # If no models responded successfully, return error
@@ -1193,7 +1229,11 @@ async def run_full_council(
         }, {}
 
     # Stage 2: Collect rankings
-    stage2_results, label_to_model = await stage2_collect_rankings(user_query, stage1_results)
+    stage2_results, label_to_model = await stage2_collect_rankings(
+        user_query, 
+        stage1_results, 
+        router_type=router_type
+    )
 
     # Calculate aggregate rankings
     aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
@@ -1203,7 +1243,8 @@ async def run_full_council(
         user_query,
         stage1_results,
         stage2_results,
-        tool_outputs=tool_outputs
+        tool_outputs=tool_outputs,
+        router_type=router_type
     )
 
     # Save exchange to memory if enabled (Feature 4)

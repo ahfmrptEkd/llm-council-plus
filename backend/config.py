@@ -92,6 +92,20 @@ if ROUTER_TYPE not in ["openrouter", "litellm"]:
         f"Invalid ROUTER_TYPE: {ROUTER_TYPE}. Must be 'openrouter' or 'litellm'. "
     )
 
+def get_available_routers():
+    """Return list of available routers based on configuration."""
+    routers = []
+    # OpenRouter is available if API Key is present
+    if OPENROUTER_API_KEY:
+        routers.append("openrouter")
+    
+    # LiteLLM/Azure is available if keys are present (checking AZURE_API_KEY as primary indicator)
+    # We could also check for google/anthropic keys but AZURE is the main one for this project context
+    if os.getenv("AZURE_API_KEY") or os.getenv("AZURE_PROJECT_ENDPOINT"):
+        routers.append("litellm")
+        
+    return routers
+
 
 def validate_openrouter_config():
     """
