@@ -207,7 +207,7 @@ async def get_api_version():
 class SetupConfigRequest(BaseModel):
     """Request to configure the application."""
     openrouter_api_key: Optional[str] = Field(default=None, min_length=10, max_length=200)
-    router_type: Optional[str] = Field(default=None, pattern="^(openrouter|litellm)$")
+    router_type: Optional[str] = Field(default=None, pattern="^(openrouter|direct|litellm)$")
     tavily_api_key: Optional[str] = Field(default=None, max_length=200)  # Optional: for web search
     exa_api_key: Optional[str] = Field(default=None, max_length=200)  # Optional: for AI-powered web search
     # Authentication settings

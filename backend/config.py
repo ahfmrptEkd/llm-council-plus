@@ -94,17 +94,23 @@ if ROUTER_TYPE not in ["openrouter", "direct", "litellm"]:
     )
 
 def get_available_routers():
-    """Return list of available routers based on configuration."""
-    routers = []
-    # OpenRouter is available if API Key is present
-    if OPENROUTER_API_KEY:
-        routers.append("openrouter")
+    """
+    Return list of available routers based on configuration.
+    Returns all possible router types that can be configured, not just currently configured ones.
+    This allows the frontend to show all options during setup.
+    """
+    # Return all supported router types - user can configure any of them
+    # The actual availability depends on API keys, but we show all options in setup wizard
+    routers = ["openrouter", "direct"]
     
-    # Direct/Azure is available if keys are present (checking AZURE_API_KEY as primary indicator)
-    # We could also check for google/anthropic keys but AZURE is the main one for this project context
-    if os.getenv("AZURE_API_KEY") or os.getenv("AZURE_PROJECT_ENDPOINT"):
-        routers.append("direct")
-        
+    # Check if Ollama is available (for direct router with Ollama)
+    # This is informational - direct router can use Ollama if configured
+    ollama_host = os.getenv("OLLAMA_HOST", "localhost:11434")
+    if ollama_host:
+        # Direct router supports Ollama, so we include it as an option
+        # Note: 'direct' router type covers both Azure/cloud and Ollama
+        pass
+    
     return routers
 
 
