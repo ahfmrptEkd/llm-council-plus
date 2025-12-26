@@ -87,7 +87,7 @@ class CostLogger:
         cost_info = self.calculate_cost(model, input_tokens, output_tokens)
 
         # Fallback to alias if cost is 0 and alias is provided (for local pricing lookup)
-        if cost_info["total_cost"] == 0 and metadata and "model_alias" in metadata:
+        if cost_info["total_cost"] == 0 and metadata and isinstance(metadata, dict) and "model_alias" in metadata:
             alias_cost_info = self.calculate_cost(metadata["model_alias"], input_tokens, output_tokens)
             if alias_cost_info["total_cost"] > 0:
                 cost_info = alias_cost_info
@@ -140,6 +140,11 @@ class CostLogger:
         # Fallback to Local Pricing
         if model in self.PRICING:
             pricing = self.PRICING[model]  # returns {input: x, output: y} per 1k
+            
+            # Ensure pricing is a dict (handle unexpected types)
+            if not isinstance(pricing, dict):
+                self._log_missing_price(model, f"Pricing config is not a dict: {type(pricing)}")
+                pricing = {}
 
             # YAML prices are per 1000 tokens
             input_price_per_token = pricing.get("input", 0) / 1000.0

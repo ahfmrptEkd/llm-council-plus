@@ -169,7 +169,7 @@ class LLMManager:
             logger.error(f"Error invoking model {model_alias}: {e}")
             raise
 
-    async def _invoke_azure_openai(self, deployment_name: str, messages: List[Dict], temperature: float, metadata: Dict, original_model: str):
+    async def _invoke_azure_openai(self, deployment_name: str, messages: List[Dict], temperature: Optional[float], metadata: Optional[Dict], original_model: str):
         client = self._get_azure_openai_client()
         
         # Azure OpenAI Reasoning models (o1, o3, etc) often require temperature=1
@@ -194,7 +194,27 @@ class LLMManager:
             temperature=temp
         )
         
-        content = response.choices[0].message.content
+        # Handle reasoning models (like DeepSeek-R1) that may have different response structures
+        message = response.choices[0].message
+        content = message.content
+        
+        # If content is None, try to get text from other fields (for reasoning models)
+        if content is None:
+            # Some reasoning models may have content in different attributes
+            if hasattr(message, 'text'):
+                content = message.text
+            elif hasattr(message, 'reasoning'):
+                content = message.reasoning
+            else:
+                # Fallback: convert to string if it's not None but unexpected type
+                content = str(content) if content is not None else ""
+        
+        # Ensure content is a string
+        if content is None:
+            content = ""
+        elif not isinstance(content, str):
+            content = str(content)
+        
         usage = response.usage
         
         input_tokens = usage.prompt_tokens if usage else 0
@@ -208,7 +228,7 @@ class LLMManager:
             "token_source": "api_response"
         }
 
-    async def _invoke_phi(self, deployment_name: str, messages: List[Dict], temperature: float, metadata: Dict, original_model: str):
+    async def _invoke_phi(self, deployment_name: str, messages: List[Dict], temperature: Optional[float], metadata: Optional[Dict], original_model: str):
         client = self._get_azure_phi_client()
         temp = temperature if temperature is not None else 0.7
         
@@ -232,7 +252,7 @@ class LLMManager:
             "token_source": "api_response"
         }
 
-    async def _invoke_grok(self, deployment_name: str, messages: List[Dict], temperature: float, metadata: Dict, original_model: str):
+    async def _invoke_grok(self, deployment_name: str, messages: List[Dict], temperature: Optional[float], metadata: Optional[Dict], original_model: str):
         client = self._get_grok_client()
         temp = temperature if temperature is not None else 0.7
         
@@ -262,7 +282,7 @@ class LLMManager:
             "token_source": "api_response"
         }
 
-    async def _invoke_anthropic(self, deployment_name: str, messages: List[Dict], temperature: float, metadata: Dict, original_model: str):
+    async def _invoke_anthropic(self, deployment_name: str, messages: List[Dict], temperature: Optional[float], metadata: Optional[Dict], original_model: str):
         client = self._get_anthropic_client()
         temp = temperature if temperature is not None else 0.7
         
@@ -305,7 +325,7 @@ class LLMManager:
             "token_source": "api_response"
         }
 
-    async def _invoke_gemini(self, deployment_name: str, messages: List[Dict], temperature: float, metadata: Dict, original_model: str):
+    async def _invoke_gemini(self, deployment_name: str, messages: List[Dict], temperature: Optional[float], metadata: Optional[Dict], original_model: str):
         self._configure_gemini()
         temp = temperature if temperature is not None else 0.7
 
