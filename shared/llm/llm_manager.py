@@ -125,6 +125,22 @@ class LLMManager:
             )
         return self._clients["grok"]
 
+    def _get_ollama_client(self) -> AsyncOpenAI:
+        if "ollama" not in self._clients:
+            # If backend runs in Docker and Ollama runs on your host, use: host.docker.internal:11434
+            host = os.getenv("OLLAMA_HOST", "localhost:11434")
+            if not host.startswith(("http://", "https://")):
+                host = f"http://{host}"
+            
+            if not host.endswith("/v1"):
+                host = f"{host}/v1"
+                
+            self._clients["ollama"] = AsyncOpenAI(
+                base_url=host,
+                api_key="ollama"  # Ollama doesn't require a real API key, but client needs one
+            )
+        return self._clients["ollama"]
+
     def _configure_gemini(self):
         if "gemini_configured" not in self._clients:
             api_key = os.getenv("GEMINI_API_KEY")
@@ -145,8 +161,12 @@ class LLMManager:
         deployment_name = self._get_deployment_name(model_alias)
         
         try:
-            # 1. Grok (xAI)
-            if "grok" in model_lower:
+            # 1. Ollama (Local via OpenAI compatible API)
+            if "ollama" in model_lower:
+                return await self._invoke_ollama(deployment_name, messages, temperature, metadata, model_alias)
+
+            # 2. Grok (xAI)
+            elif "grok" in model_lower:
                 return await self._invoke_grok(deployment_name, messages, temperature, metadata, model_alias)
             
             # 2. Gemini
@@ -169,7 +189,7 @@ class LLMManager:
             logger.error(f"Error invoking model {model_alias}: {e}")
             raise
 
-    async def _invoke_azure_openai(self, deployment_name: str, messages: List[Dict], temperature: float, metadata: Dict, original_model: str):
+    async def _invoke_azure_openai(self, deployment_name: str, messages: List[Dict], temperature: Optional[float], metadata: Optional[Dict], original_model: str):
         client = self._get_azure_openai_client()
         
         # Azure OpenAI Reasoning models (o1, o3, etc) often require temperature=1
@@ -194,7 +214,27 @@ class LLMManager:
             temperature=temp
         )
         
-        content = response.choices[0].message.content
+        # Handle reasoning models (like DeepSeek-R1) that may have different response structures
+        message = response.choices[0].message
+        content = message.content
+        
+        # If content is None, try to get text from other fields (for reasoning models)
+        if content is None:
+            # Some reasoning models may have content in different attributes
+            if hasattr(message, 'text'):
+                content = message.text
+            elif hasattr(message, 'reasoning'):
+                content = message.reasoning
+            else:
+                # Fallback: convert to string if it's not None but unexpected type
+                content = str(content) if content is not None else ""
+        
+        # Ensure content is a string
+        if content is None:
+            content = ""
+        elif not isinstance(content, str):
+            content = str(content)
+        
         usage = response.usage
         
         input_tokens = usage.prompt_tokens if usage else 0
@@ -208,10 +248,17 @@ class LLMManager:
             "token_source": "api_response"
         }
 
-    async def _invoke_phi(self, deployment_name: str, messages: List[Dict], temperature: float, metadata: Dict, original_model: str):
-        client = self._get_azure_phi_client()
+        return {
+            "response_text": content,
+            "tokens": {"input": input_tokens, "output": output_tokens, "total": input_tokens + output_tokens},
+            "token_source": "api_response"
+        }
+
+    async def _invoke_ollama(self, deployment_name: str, messages: List[Dict], temperature: Optional[float], metadata: Optional[Dict], original_model: str):
+        client = self._get_ollama_client()
         temp = temperature if temperature is not None else 0.7
         
+        # deployment_name should be the actual model name for Ollama (e.g., 'llama3.1:latest')
         response = await client.chat.completions.create(
             model=deployment_name,
             messages=messages,
@@ -232,7 +279,7 @@ class LLMManager:
             "token_source": "api_response"
         }
 
-    async def _invoke_grok(self, deployment_name: str, messages: List[Dict], temperature: float, metadata: Dict, original_model: str):
+    async def _invoke_grok(self, deployment_name: str, messages: List[Dict], temperature: Optional[float], metadata: Optional[Dict], original_model: str):
         client = self._get_grok_client()
         temp = temperature if temperature is not None else 0.7
         
@@ -262,7 +309,7 @@ class LLMManager:
             "token_source": "api_response"
         }
 
-    async def _invoke_anthropic(self, deployment_name: str, messages: List[Dict], temperature: float, metadata: Dict, original_model: str):
+    async def _invoke_anthropic(self, deployment_name: str, messages: List[Dict], temperature: Optional[float], metadata: Optional[Dict], original_model: str):
         client = self._get_anthropic_client()
         temp = temperature if temperature is not None else 0.7
         
@@ -305,7 +352,7 @@ class LLMManager:
             "token_source": "api_response"
         }
 
-    async def _invoke_gemini(self, deployment_name: str, messages: List[Dict], temperature: float, metadata: Dict, original_model: str):
+    async def _invoke_gemini(self, deployment_name: str, messages: List[Dict], temperature: Optional[float], metadata: Optional[Dict], original_model: str):
         self._configure_gemini()
         temp = temperature if temperature is not None else 0.7
 

@@ -117,6 +117,15 @@ async def query_model(
                 metadata={"stage": stage} if stage else None
             )
 
+            # Ensure result is a dictionary (handle unexpected return types)
+            if not isinstance(result, dict):
+                logger.error("Unexpected return type from invoke_model: %s (expected dict)", type(result).__name__)
+                return {
+                    'error': True,
+                    'error_type': 'invalid_response',
+                    'error_message': f'LLM manager returned unexpected type: {type(result).__name__}'
+                }
+
             response_text = result.get("response_text", "")
             if not response_text or not str(response_text).strip():
                 logger.error("Empty response from LLM!")

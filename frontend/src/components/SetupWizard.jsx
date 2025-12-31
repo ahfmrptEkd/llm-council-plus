@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../api';
 import './SetupWizard.css';
 
 export default function SetupWizard({ onComplete }) {
   const [routerType, setRouterType] = useState('openrouter');
+  const [availableRouters, setAvailableRouters] = useState([]);
   const [apiKey, setApiKey] = useState('');
   const [tavilyKey, setTavilyKey] = useState('');
   const [exaKey, setExaKey] = useState('');
@@ -16,6 +17,33 @@ export default function SetupWizard({ onComplete }) {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
+  const [loadingRouters, setLoadingRouters] = useState(true);
+
+  // Load available routers from backend
+  useEffect(() => {
+    const loadAvailableRouters = async () => {
+      try {
+        const setup = await api.getSetupStatus();
+        if (setup.available_routers && setup.available_routers.length > 0) {
+          setAvailableRouters(setup.available_routers);
+          // Set default router type to first available
+          if (setup.available_routers.length > 0) {
+            setRouterType(setup.available_routers[0]);
+          }
+        } else {
+          // Fallback to default routers if backend doesn't return any
+          setAvailableRouters(['openrouter', 'direct']);
+        }
+      } catch (err) {
+        console.error('Failed to load available routers:', err);
+        // Fallback to default routers on error
+        setAvailableRouters(['openrouter', 'direct']);
+      } finally {
+        setLoadingRouters(false);
+      }
+    };
+    loadAvailableRouters();
+  }, []);
 
   // Generate JWT secret
   const handleGenerateJwt = async () => {
@@ -156,26 +184,47 @@ export default function SetupWizard({ onComplete }) {
           {/* Step 1: Choose Router Type */}
           <div className="form-group">
             <label className="form-label">Choose LLM Provider</label>
-            <div className="router-options">
-              <button
-                type="button"
-                className={`router-option ${routerType === 'openrouter' ? 'selected' : ''}`}
-                onClick={() => setRouterType('openrouter')}
-              >
-                <div className="router-icon">&#127758;</div>
-                <div className="router-name">OpenRouter</div>
-                <div className="router-desc">Cloud models (GPT, Claude, Gemini)</div>
-              </button>
-              <button
-                type="button"
-                className={`router-option ${routerType === 'ollama' ? 'selected' : ''}`}
-                onClick={() => setRouterType('ollama')}
-              >
-                <div className="router-icon">&#128187;</div>
-                <div className="router-name">Ollama</div>
-                <div className="router-desc">Local models (no API key)</div>
-              </button>
-            </div>
+            {loadingRouters ? (
+              <div className="loading-routers">Loading router options...</div>
+            ) : (
+              <div className="router-options">
+                {availableRouters.includes('openrouter') && (
+                  <button
+                    type="button"
+                    className={`router-option ${routerType === 'openrouter' ? 'selected' : ''}`}
+                    onClick={() => setRouterType('openrouter')}
+                  >
+                    <div className="router-icon">&#127758;</div>
+                    <div className="router-name">OpenRouter</div>
+                    <div className="router-desc">Cloud models (GPT, Claude, Gemini)</div>
+                  </button>
+                )}
+                {availableRouters.includes('direct') && (
+                  <button
+                    type="button"
+                    className={`router-option ${routerType === 'direct' ? 'selected' : ''}`}
+                    onClick={() => setRouterType('direct')}
+                  >
+                    <div className="router-icon">&#128187;</div>
+                    <div className="router-name">Direct</div>
+                    <div className="router-desc">Azure, GCP, Ollama, or other providers</div>
+                  </button>
+                )}
+                {/* Fallback for any other router types */}
+                {availableRouters.filter(r => r !== 'openrouter' && r !== 'direct').map(router => (
+                  <button
+                    key={router}
+                    type="button"
+                    className={`router-option ${routerType === router ? 'selected' : ''}`}
+                    onClick={() => setRouterType(router)}
+                  >
+                    <div className="router-icon">&#128187;</div>
+                    <div className="router-name">{router.charAt(0).toUpperCase() + router.slice(1)}</div>
+                    <div className="router-desc">Alternative router type</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Step 2: API Key (only for OpenRouter) */}
@@ -202,17 +251,20 @@ export default function SetupWizard({ onComplete }) {
             </div>
           )}
 
-          {routerType === 'ollama' && (
+          {routerType === 'direct' && (
             <div className="form-group">
               <div className="ollama-notice">
                 <p>
-                  <strong>Ollama</strong> must be running locally on port 11434.
+                  <strong>Direct Connection</strong> supports multiple providers:
                 </p>
-                <p>
-                  Install from{' '}
-                  <a href="https://ollama.ai" target="_blank" rel="noopener noreferrer">
-                    ollama.ai
-                  </a>
+                <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
+                  <li>Azure OpenAI / Azure Anthropic (requires AZURE_API_KEY)</li>
+                  <li>Google Cloud (requires GOOGLE_API_KEY)</li>
+                  <li>Ollama local models (requires OLLAMA_HOST, default: localhost:11434)</li>
+                  <li>Other LiteLLM-compatible providers</li>
+                </ul>
+                <p style={{ marginTop: '10px' }}>
+                  Configure provider-specific API keys in your .env file after setup.
                 </p>
               </div>
             </div>
