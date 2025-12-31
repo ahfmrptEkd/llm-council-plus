@@ -125,6 +125,22 @@ class LLMManager:
             )
         return self._clients["grok"]
 
+    def _get_ollama_client(self) -> AsyncOpenAI:
+        if "ollama" not in self._clients:
+            # If backend runs in Docker and Ollama runs on your host, use: host.docker.internal:11434
+            host = os.getenv("OLLAMA_HOST", "localhost:11434")
+            if not host.startswith(("http://", "https://")):
+                host = f"http://{host}"
+            
+            if not host.endswith("/v1"):
+                host = f"{host}/v1"
+                
+            self._clients["ollama"] = AsyncOpenAI(
+                base_url=host,
+                api_key="ollama"  # Ollama doesn't require a real API key, but client needs one
+            )
+        return self._clients["ollama"]
+
     def _configure_gemini(self):
         if "gemini_configured" not in self._clients:
             api_key = os.getenv("GEMINI_API_KEY")
@@ -145,8 +161,12 @@ class LLMManager:
         deployment_name = self._get_deployment_name(model_alias)
         
         try:
-            # 1. Grok (xAI)
-            if "grok" in model_lower:
+            # 1. Ollama (Local via OpenAI compatible API)
+            if "ollama" in model_lower:
+                return await self._invoke_ollama(deployment_name, messages, temperature, metadata, model_alias)
+
+            # 2. Grok (xAI)
+            elif "grok" in model_lower:
                 return await self._invoke_grok(deployment_name, messages, temperature, metadata, model_alias)
             
             # 2. Gemini
@@ -228,10 +248,17 @@ class LLMManager:
             "token_source": "api_response"
         }
 
-    async def _invoke_phi(self, deployment_name: str, messages: List[Dict], temperature: Optional[float], metadata: Optional[Dict], original_model: str):
-        client = self._get_azure_phi_client()
+        return {
+            "response_text": content,
+            "tokens": {"input": input_tokens, "output": output_tokens, "total": input_tokens + output_tokens},
+            "token_source": "api_response"
+        }
+
+    async def _invoke_ollama(self, deployment_name: str, messages: List[Dict], temperature: Optional[float], metadata: Optional[Dict], original_model: str):
+        client = self._get_ollama_client()
         temp = temperature if temperature is not None else 0.7
         
+        # deployment_name should be the actual model name for Ollama (e.g., 'llama3.1:latest')
         response = await client.chat.completions.create(
             model=deployment_name,
             messages=messages,
