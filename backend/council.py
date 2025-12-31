@@ -266,7 +266,7 @@ def requires_tools(query: str) -> bool:
     )
 
 
-async def optimize_search_query(user_query: str, chairman: str = None) -> str:
+async def optimize_search_query(user_query: str, chairman: str = None, router_type: str = None) -> str:
     """
     Use Chairman model to generate an optimized web search query.
     The Chairman is prompted as an expert in composing search queries
@@ -275,6 +275,7 @@ async def optimize_search_query(user_query: str, chairman: str = None) -> str:
     Args:
         user_query: The original user question
         chairman: Optional chairman model override (defaults to CHAIRMAN_MODEL)
+        router_type: Optional router type (not currently used, for future routing logic)
 
     Returns:
         Optimized search query string
